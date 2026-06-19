@@ -1,0 +1,22 @@
+CREATE TABLE conversions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    campaign_id BIGINT NOT NULL,
+    referral_id BIGINT NOT NULL,
+    referrer_user_id BIGINT NOT NULL,
+    referee_user_id BIGINT NOT NULL,
+    event_name VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING',
+    completed_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+    FOREIGN KEY (referral_id) REFERENCES referrals(id) ON DELETE CASCADE,
+    FOREIGN KEY (referrer_user_id) REFERENCES platform_users(id) ON DELETE CASCADE,
+    FOREIGN KEY (referee_user_id) REFERENCES platform_users(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_conversions_referral_referee (referral_id, referee_user_id),
+    INDEX idx_conversions_company_id (company_id),
+    INDEX idx_conversions_campaign_id (campaign_id),
+    INDEX idx_conversions_referral_id (referral_id),
+    INDEX idx_conversions_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

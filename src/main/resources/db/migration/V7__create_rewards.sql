@@ -1,0 +1,23 @@
+CREATE TABLE rewards (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    campaign_id BIGINT NOT NULL,
+    conversion_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    reward_type VARCHAR(50) NOT NULL,
+    reward_value DECIMAL(10, 2) NOT NULL,
+    coupon_code VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'ISSUED',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    redeemed_at TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+    FOREIGN KEY (conversion_id) REFERENCES conversions(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES platform_users(id) ON DELETE CASCADE,
+    UNIQUE KEY uk_rewards_coupon_code (coupon_code),
+    UNIQUE KEY uk_rewards_conversion_user (conversion_id, user_id),
+    INDEX idx_rewards_company_id (company_id),
+    INDEX idx_rewards_campaign_id (campaign_id),
+    INDEX idx_rewards_user_id (user_id),
+    INDEX idx_rewards_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

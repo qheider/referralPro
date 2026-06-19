@@ -1,0 +1,20 @@
+CREATE TABLE campaigns (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    landing_page_url VARCHAR(500) NOT NULL,
+    start_date TIMESTAMP NOT NULL,
+    end_date TIMESTAMP NOT NULL,
+    reward_type VARCHAR(50) NOT NULL,
+    referrer_reward_value DECIMAL(10, 2) NOT NULL,
+    referee_reward_value DECIMAL(10, 2) NOT NULL,
+    conversion_event_name VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'DRAFT',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    INDEX idx_campaigns_company_id (company_id),
+    INDEX idx_campaigns_status (status),
+    INDEX idx_campaigns_dates (start_date, end_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
