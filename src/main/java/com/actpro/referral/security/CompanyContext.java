@@ -1,22 +1,20 @@
 package com.actpro.referral.security;
 
 import com.actpro.referral.company.Company;
-import org.springframework.stereotype.Component;
 
-@Component
 public class CompanyContext {
 
     private static final ThreadLocal<Company> currentCompany = new ThreadLocal<>();
 
-    public void setCurrentCompany(Company company) {
+    public static void setCurrentCompany(Company company) {
         currentCompany.set(company);
     }
 
-    public Company getCurrentCompany() {
+    public static Company getCurrentCompany() {
         return currentCompany.get();
     }
 
-    public void clear() {
+    public static void clear() {
         currentCompany.remove();
     }
 }

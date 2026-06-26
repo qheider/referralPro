@@ -25,14 +25,13 @@ public class ReferralService {
     private final CampaignRepository campaignRepository;
     private final PlatformUserService platformUserService;
     private final ReferralCodeGenerator referralCodeGenerator;
-    private final CompanyContext companyContext;
 
     @Value("${app.base-url}")
     private String baseUrl;
 
     @Transactional
     public GenerateReferralResponse generateReferral(GenerateReferralRequest request) {
-        Company company = companyContext.getCurrentCompany();
+        Company company = CompanyContext.getCurrentCompany();
         log.info("Generating referral for company: {} (ID: {}), campaign: {}",
                 company.getName(), company.getId(), request.campaignId());
 

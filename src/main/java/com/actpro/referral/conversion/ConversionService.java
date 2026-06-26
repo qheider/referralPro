@@ -28,11 +28,10 @@ public class ConversionService {
     private final ReferralRepository referralRepository;
     private final PlatformUserService platformUserService;
     private final RewardService rewardService;
-    private final CompanyContext companyContext;
 
     @Transactional
     public ConversionWithRewards completeConversion(ConversionRequest request) {
-        Company company = companyContext.getCurrentCompany();
+        Company company = CompanyContext.getCurrentCompany();
         log.info("Processing conversion for company: {} (ID: {}), referralCode: {}",
                 company.getName(), company.getId(), request.referralCode());
 

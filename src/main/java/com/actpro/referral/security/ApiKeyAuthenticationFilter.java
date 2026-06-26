@@ -29,7 +29,6 @@ import java.util.Optional;
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private final CompanyRepository companyRepository;
-    private final CompanyContext companyContext;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -43,6 +42,21 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // Skip filter for public endpoints
         if (isPublicEndpoint(path)) {
             log.debug("Public endpoint, skipping API key authentication");
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // Skip filter for JWT-protected endpoints (dashboard and auth)
+        if (isJwtProtectedEndpoint(path)) {
+            log.debug("JWT-protected endpoint, skipping API key authentication");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
+        // Skip if already authenticated (JWT filter may have already authenticated)
+        if (SecurityContextHolder.getContext().getAuthentication() != null && 
+            SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+            log.debug("Already authenticated, skipping API key authentication");
             filterChain.doFilter(request, response);
             return;
         }
@@ -70,7 +84,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         log.info("Authenticated company: {} (ID: {})", company.getName(), company.getId());
 
         // Store company in context
-        companyContext.setCurrentCompany(company);
+        CompanyContext.setCurrentCompany(company);
 
         // Create Spring Security authentication
         PreAuthenticatedAuthenticationToken authentication =
@@ -87,17 +101,24 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
         } finally {
             // Clear context after request
-            companyContext.clear();
+            CompanyContext.clear();
             SecurityContextHolder.clearContext();
         }
     }
 
     private boolean isPublicEndpoint(String path) {
         return path.startsWith("/api/companies/register") ||
+                path.startsWith("/api/auth/login") ||
+                path.startsWith("/api/auth/hash") ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/actuator");
+    }
+
+    private boolean isJwtProtectedEndpoint(String path) {
+        return path.startsWith("/api/dashboard/") ||
+                path.startsWith("/api/auth/me");
     }
 
     private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

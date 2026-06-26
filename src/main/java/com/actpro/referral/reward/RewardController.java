@@ -24,7 +24,6 @@ import java.util.stream.Collectors;
 public class RewardController {
 
     private final RewardRepository rewardRepository;
-    private final CompanyContext companyContext;
 
     @Operation(
             summary = "Get rewards by user",
@@ -35,7 +34,7 @@ public class RewardController {
     public ResponseEntity<ApiResponse<UserRewardsResponse>> getRewardsByUser(
             @PathVariable String externalUserId) {
 
-        Long companyId = companyContext.getCurrentCompany().getId();
+        Long companyId = CompanyContext.getCurrentCompany().getId();
 
         List<Reward> rewards = rewardRepository.findByCompanyIdAndUserExternalUserId(companyId, externalUserId);
 
