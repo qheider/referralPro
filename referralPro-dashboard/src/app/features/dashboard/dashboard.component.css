@@ -1,1 +1,3 @@
-/* Custom styles for dashboard component if needed */
+:host {
+  display: block;
+}

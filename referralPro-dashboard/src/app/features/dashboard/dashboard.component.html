@@ -1,91 +1,201 @@
 <div class="mx-auto max-w-7xl space-y-6">
   <section class="rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-900 to-indigo-700 p-6 text-white shadow-sm sm:p-8">
-    <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-200">Phase 5 complete</p>
-    <h2 class="mt-3 text-3xl font-semibold sm:text-4xl">
-      The dashboard layout shell is now in place.
-    </h2>
-    <p class="mt-3 max-w-3xl text-sm text-indigo-100 sm:text-base">
-      Authenticated users now land inside a responsive application frame with persistent navigation,
-      a reusable header, and a routed overview page that future dashboard sections can plug into.
-    </p>
+    <div class="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-200">Phase 6</p>
+        <h2 class="mt-3 text-3xl font-semibold sm:text-4xl">
+          Campaign overview
+        </h2>
+        <p class="mt-3 max-w-3xl text-sm text-indigo-100 sm:text-base">
+          View campaign totals, filter by status, and compare referral versus conversion performance from the routed overview page.
+        </p>
+      </div>
+
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div class="rounded-2xl bg-white/10 px-4 py-3 text-sm text-indigo-50">
+          <p class="font-semibold">{{ overview?.companyName || currentUser?.companyName || 'ReferralPro tenant' }}</p>
+          <p class="mt-1 text-xs text-indigo-100">
+            {{ totalCampaigns }} visible campaign{{ totalCampaigns === 1 ? '' : 's' }}
+            <span *ngIf="lastUpdated">· Updated {{ lastUpdated | date:'shortTime' }}</span>
+          </p>
+        </div>
+
+        <button
+          type="button"
+          class="inline-flex items-center justify-center rounded-xl bg-white px-4 py-3 text-sm font-semibold text-indigo-700 transition-colors hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-60"
+          (click)="refreshOverview()"
+          [disabled]="isLoading"
+        >
+          {{ isLoading ? 'Refreshing...' : 'Refresh overview' }}
+        </button>
+      </div>
+    </div>
   </section>
 
-  <section class="grid gap-4 md:grid-cols-3">
+  <section class="flex flex-wrap gap-2">
+    <button
+      *ngFor="let status of availableStatuses"
+      type="button"
+      class="rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+      [class.bg-slate-900]="selectedStatus === status"
+      [class.text-white]="selectedStatus === status"
+      [class.bg-white]="selectedStatus !== status"
+      [class.text-slate-600]="selectedStatus !== status"
+      [class.ring-1]="selectedStatus !== status"
+      [class.ring-slate-200]="selectedStatus !== status"
+      (click)="setStatusFilter(status)"
+    >
+      {{ status === 'ALL' ? 'All statuses' : status }}
+    </button>
+  </section>
+
+  <section *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800 shadow-sm">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-red-700">Overview unavailable</h3>
+        <p class="mt-1 text-sm">{{ errorMessage }}</p>
+      </div>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+        (click)="refreshOverview()"
+      >
+        Retry
+      </button>
+    </div>
+  </section>
+
+  <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
     <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-      <p class="text-sm font-medium text-slate-500">Authentication</p>
-      <p class="mt-3 text-3xl font-semibold text-emerald-600">Active</p>
-      <p class="mt-2 text-sm text-slate-600">JWT-protected routing continues to gate the dashboard shell.</p>
+      <p class="text-sm font-medium text-slate-500">Campaigns</p>
+      <p class="mt-3 text-3xl font-semibold text-slate-900">{{ totalCampaigns }}</p>
+      <p class="mt-2 text-sm text-slate-600">Visible campaigns after the current status filter is applied.</p>
     </article>
 
     <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-      <p class="text-sm font-medium text-slate-500">Navigation</p>
-      <p class="mt-3 text-3xl font-semibold text-indigo-600">Responsive</p>
-      <p class="mt-2 text-sm text-slate-600">The sidebar collapses on mobile and stays pinned on large screens.</p>
+      <p class="text-sm font-medium text-slate-500">Referrals</p>
+      <p class="mt-3 text-3xl font-semibold text-indigo-600">{{ totalReferrals }}</p>
+      <p class="mt-2 text-sm text-slate-600">Total referral links generated across the visible campaigns.</p>
     </article>
 
     <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-      <p class="text-sm font-medium text-slate-500">Next milestone</p>
-      <p class="mt-3 text-3xl font-semibold text-slate-900">Phase 6</p>
-      <p class="mt-2 text-sm text-slate-600">Campaign overview data and analytics pages can now slot into this shell.</p>
+      <p class="text-sm font-medium text-slate-500">Conversions</p>
+      <p class="mt-3 text-3xl font-semibold text-emerald-600">{{ totalConversions }}</p>
+      <p class="mt-2 text-sm text-slate-600">Completed conversions tracked for the selected campaign set.</p>
+    </article>
+
+    <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <p class="text-sm font-medium text-slate-500">Average conversion rate</p>
+      <p class="mt-3 text-3xl font-semibold text-amber-600">{{ averageConversionRate | number:'1.0-2' }}%</p>
+      <p class="mt-2 text-sm text-slate-600">{{ totalClicks }} recorded clicks contribute to this overview.</p>
     </article>
   </section>
 
-  <section class="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+  <section *ngIf="!isLoading && !errorMessage && hasCampaigns" class="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
     <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <div class="flex items-start justify-between gap-4">
         <div>
-          <h3 class="text-xl font-semibold text-slate-900">
-            Welcome back<span *ngIf="currentUser">, {{ currentUser.username }}</span>
-          </h3>
+          <h3 class="text-xl font-semibold text-slate-900">Campaign performance</h3>
           <p class="mt-2 text-sm text-slate-600">
-            This overview page now lives inside the shared dashboard shell rather than owning the entire screen layout.
+            Top campaigns by referral volume, compared directly against their completed conversions.
           </p>
         </div>
-        <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
-          Protected route
+        <span class="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-indigo-700">
+          Top 5
         </span>
       </div>
 
-      <div *ngIf="currentUser" class="mt-6 grid gap-4 sm:grid-cols-2">
-        <div class="rounded-2xl bg-slate-50 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">User ID</p>
-          <p class="mt-2 text-lg font-semibold text-slate-900">{{ currentUser.userId }}</p>
-        </div>
-        <div class="rounded-2xl bg-slate-50 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Company ID</p>
-          <p class="mt-2 text-lg font-semibold text-slate-900">{{ currentUser.companyId }}</p>
-        </div>
-        <div class="rounded-2xl bg-slate-50 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Role</p>
-          <p class="mt-2 text-lg font-semibold text-slate-900">{{ currentUser.role }}</p>
-        </div>
-        <div class="rounded-2xl bg-slate-50 p-4">
-          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Company</p>
-          <p class="mt-2 text-lg font-semibold text-slate-900">{{ currentUser.companyName || 'Loading tenant details' }}</p>
-        </div>
+      <div class="mt-6 h-80">
+        <canvas
+          baseChart
+          [data]="performanceChartData"
+          [options]="performanceChartOptions"
+          [type]="performanceChartType"
+        ></canvas>
       </div>
     </article>
 
     <article class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-      <h3 class="text-xl font-semibold text-slate-900">Phase 6 handoff</h3>
+      <h3 class="text-xl font-semibold text-slate-900">Campaign status mix</h3>
       <p class="mt-2 text-sm text-slate-600">
-        The next dashboard phase can focus on data and charts instead of app chrome.
+        A quick view of how the current filtered campaigns are distributed by lifecycle status.
       </p>
 
-      <ol class="mt-6 space-y-4 text-sm text-slate-600">
-        <li class="flex gap-3">
-          <span class="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">1</span>
-          <span>Wire `GET /api/dashboard/campaigns/overview` into an overview page service.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">2</span>
-          <span>Add metric cards and campaign tables inside routed dashboard pages.</span>
-        </li>
-        <li class="flex gap-3">
-          <span class="mt-0.5 flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">3</span>
-          <span>Introduce Chart.js visualizations once the overview data model is in place.</span>
-        </li>
-      </ol>
+      <div class="mt-6 h-80">
+        <canvas
+          baseChart
+          [data]="statusChartData"
+          [options]="statusChartOptions"
+          [type]="statusChartType"
+        ></canvas>
+      </div>
     </article>
+  </section>
+
+  <section *ngIf="isLoading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <div class="flex items-center gap-3 text-slate-600">
+      <svg class="h-5 w-5 animate-spin text-indigo-600" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <p class="text-sm font-medium">Loading campaign overview...</p>
+    </div>
+  </section>
+
+  <section *ngIf="!isLoading && !errorMessage && !hasCampaigns" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <h3 class="text-xl font-semibold text-slate-900">No campaigns to display</h3>
+    <p class="mt-2 max-w-2xl text-sm text-slate-600">
+      The current company does not have any campaigns for this filter yet. Create campaigns in the backend flow or adjust the selected status filter to populate the overview.
+    </p>
+  </section>
+
+  <section *ngIf="!isLoading && !errorMessage" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h3 class="text-xl font-semibold text-slate-900">Campaign list</h3>
+        <p class="mt-1 text-sm text-slate-600">
+          Overview metrics for each visible campaign, sorted in the same order returned by the backend analytics endpoint.
+        </p>
+      </div>
+      <p class="text-sm text-slate-500">{{ filteredCampaigns.length }} row{{ filteredCampaigns.length === 1 ? '' : 's' }}</p>
+    </div>
+
+    <div class="mt-6 overflow-x-auto">
+      <table *ngIf="filteredCampaigns.length; else noRows" class="min-w-full divide-y divide-slate-200">
+        <thead>
+          <tr class="text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <th class="px-4 py-3">Campaign</th>
+            <th class="px-4 py-3">Status</th>
+            <th class="px-4 py-3 text-right">Referrals</th>
+            <th class="px-4 py-3 text-right">Clicks</th>
+            <th class="px-4 py-3 text-right">Conversions</th>
+            <th class="px-4 py-3 text-right">Rate</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          <tr *ngFor="let campaign of filteredCampaigns; trackBy: trackByCampaignId" class="hover:bg-slate-50">
+            <td class="px-4 py-4">
+              <p class="font-semibold text-slate-900">{{ campaign.campaignName }}</p>
+              <p class="text-sm text-slate-500">Campaign #{{ campaign.campaignId }}</p>
+            </td>
+            <td class="px-4 py-4">
+              <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-slate-700">
+                {{ campaign.status }}
+              </span>
+            </td>
+            <td class="px-4 py-4 text-right font-medium text-slate-900">{{ campaign.referralCount }}</td>
+            <td class="px-4 py-4 text-right font-medium text-slate-900">{{ campaign.clickCount }}</td>
+            <td class="px-4 py-4 text-right font-medium text-slate-900">{{ campaign.conversionCount }}</td>
+            <td class="px-4 py-4 text-right font-semibold text-indigo-700">{{ campaign.conversionRate | number:'1.0-2' }}%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <ng-template #noRows>
+        <div class="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center text-sm text-slate-500">
+          No campaigns match the selected filter.
+        </div>
+      </ng-template>
+    </div>
   </section>
 </div>

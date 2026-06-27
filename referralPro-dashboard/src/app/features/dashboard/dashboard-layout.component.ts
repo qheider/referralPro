@@ -32,12 +32,12 @@ export class DashboardLayoutComponent implements OnInit {
     },
     {
       label: 'Campaigns',
-      description: 'Detailed campaign views in phase 6',
+      description: 'Detailed campaign views in phase 7',
       disabled: true
     },
     {
       label: 'Analytics',
-      description: 'Charts and funnel analysis in phase 6',
+      description: 'Deep analytics routes in phase 7',
       disabled: true
     },
     {

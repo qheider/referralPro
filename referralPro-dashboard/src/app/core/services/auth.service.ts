@@ -1,8 +1,9 @@
 import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { Observable, BehaviorSubject, tap, catchError, throwError } from 'rxjs';
+import { Observable, BehaviorSubject, tap, catchError, throwError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { ApiResponse } from '../../shared/models/api-response.model';
 import { LoginRequest, LoginResponse, CurrentUserResponse, User } from '../../shared/models/auth.model';
 
 @Injectable({
@@ -27,13 +28,12 @@ export class AuthService {
    * Login with username and password
    */
   login(credentials: LoginRequest): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>(`${environment.apiUrl}/auth/login`, credentials)
+    return this.http.post<ApiResponse<LoginResponse>>(`${environment.apiUrl}/auth/login`, credentials)
       .pipe(
+        map(response => this.unwrapResponse(response, 'Login response did not include user data')),
         tap(response => {
-          // Store token
           this.setToken(response.token);
-          
-          // Create and store user object
+
           const user: User = {
             userId: response.userId,
             username: response.username,
@@ -41,8 +41,7 @@ export class AuthService {
             role: response.role
           };
           this.setUser(user);
-          
-          // Update observables and signals
+
           this.currentUserSubject.next(user);
           this.currentUserSignal.set(user);
         }),
@@ -68,8 +67,9 @@ export class AuthService {
    * Get current user details from API
    */
   getCurrentUser(): Observable<CurrentUserResponse> {
-    return this.http.get<CurrentUserResponse>(`${environment.apiUrl}/auth/me`)
+    return this.http.get<ApiResponse<CurrentUserResponse>>(`${environment.apiUrl}/auth/me`)
       .pipe(
+        map(response => this.unwrapResponse(response, 'Current user response did not include user data')),
         tap(response => {
           const user: User = {
             userId: response.userId,
@@ -192,5 +192,13 @@ export class AuthService {
    */
   getCurrentUserValue(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
+    if (!response.success || response.data === undefined) {
+      throw new Error(response.message || fallbackMessage);
+    }
+
+    return response.data;
   }
 }
