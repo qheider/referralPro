@@ -32,8 +32,8 @@ export class DashboardLayoutComponent implements OnInit {
     },
     {
       label: 'Campaigns',
-      description: 'Detailed campaign views in phase 7',
-      disabled: true
+      route: '/dashboard/overview',
+      description: 'Campaign overview and drill-down'
     },
     {
       label: 'Analytics',
@@ -101,6 +101,11 @@ export class DashboardLayoutComponent implements OnInit {
   }
 
   private syncPageTitle(url: string): void {
+    if (url.includes('/dashboard/campaigns/')) {
+      this.currentPageTitle = 'Campaign detail';
+      return;
+    }
+
     const activeItem = this.navigationItems.find(item => item.route && url.startsWith(item.route));
     this.currentPageTitle = activeItem?.label ?? 'Overview';
   }

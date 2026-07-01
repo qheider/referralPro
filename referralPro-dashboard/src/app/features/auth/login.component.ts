@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
 import { Router, ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
 @Component({
   selector: 'app-login',
@@ -59,15 +60,13 @@ export class LoginComponent implements OnInit {
     };
 
     this.authService.login(credentials).subscribe({
-      next: (response) => {
-        console.log('Login successful:', response);
+      next: () => {
         this.isLoading = false;
         
         // Navigate to return URL or dashboard
         this.router.navigate([this.returnUrl]);
       },
       error: (error) => {
-        console.error('Login error:', error);
         this.isLoading = false;
         
         // Handle different error scenarios
@@ -76,7 +75,7 @@ export class LoginComponent implements OnInit {
         } else if (error.status === 0) {
           this.errorMessage = 'Unable to connect to server. Please check your internet connection.';
         } else {
-          this.errorMessage = error.error?.message || 'An error occurred during login. Please try again.';
+          this.errorMessage = extractApiErrorMessage(error, 'An error occurred during login. Please try again.');
         }
       }
     });

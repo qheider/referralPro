@@ -170,6 +170,7 @@
             <th class="px-4 py-3 text-right">Clicks</th>
             <th class="px-4 py-3 text-right">Conversions</th>
             <th class="px-4 py-3 text-right">Rate</th>
+            <th class="px-4 py-3 text-right">Details</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
@@ -187,6 +188,14 @@
             <td class="px-4 py-4 text-right font-medium text-slate-900">{{ campaign.clickCount }}</td>
             <td class="px-4 py-4 text-right font-medium text-slate-900">{{ campaign.conversionCount }}</td>
             <td class="px-4 py-4 text-right font-semibold text-indigo-700">{{ campaign.conversionRate | number:'1.0-2' }}%</td>
+            <td class="px-4 py-4 text-right">
+              <a
+                class="inline-flex items-center rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+                [routerLink]="['/dashboard/campaigns', campaign.campaignId]"
+              >
+                View
+              </a>
+            </td>
           </tr>
         </tbody>
       </table>

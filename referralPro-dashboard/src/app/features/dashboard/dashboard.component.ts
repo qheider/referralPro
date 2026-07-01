@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { User } from '../../shared/models/auth.model';
 import { DashboardService } from '../../core/services/dashboard.service';
@@ -7,11 +8,12 @@ import { CampaignOverviewItem, CampaignsOverviewResponse } from '../../shared/mo
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration } from 'chart.js';
 import { finalize } from 'rxjs';
+import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, BaseChartDirective],
+  imports: [CommonModule, BaseChartDirective, RouterLink],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css'
 })
@@ -149,7 +151,7 @@ export class DashboardComponent implements OnInit {
         },
         error: error => {
           console.error('Dashboard overview failed:', error);
-          this.errorMessage = error.error?.message || error.message || 'Unable to load dashboard overview.';
+          this.errorMessage = extractApiErrorMessage(error, 'Unable to load dashboard overview.');
           this.overview = null;
           this.updateCharts();
         }
