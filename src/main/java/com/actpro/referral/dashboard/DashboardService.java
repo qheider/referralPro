@@ -9,6 +9,7 @@ import com.actpro.referral.security.CompanyContext;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DashboardService {
 
     private final CampaignRepository campaignRepository;
@@ -30,47 +32,51 @@ public class DashboardService {
     @Transactional(readOnly = true)
     public CampaignsOverviewResponse getCampaignsOverview() {
         Company company = CompanyContext.getCurrentCompany();
+        
+        if (company == null) {
+            throw new IllegalStateException("Company context not set - authentication may have failed");
+        }
+        
+        log.debug("Loading campaigns overview for company: {} (ID: {})", company.getName(), company.getId());
 
-        String sql = """
-            SELECT 
-                c.id as campaignId,
-                c.name as campaignName,
-                c.status as status,
-                COUNT(DISTINCT r.id) as referralCount,
-                COUNT(DISTINCT rc.id) as clickCount,
-                COUNT(DISTINCT conv.id) as conversionCount
-            FROM campaigns c
-            LEFT JOIN referrals r ON r.campaign_id = c.id
-            LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
-            LEFT JOIN conversions conv ON conv.campaign_id = c.id
-            WHERE c.company_id = :companyId
-            GROUP BY c.id, c.name, c.status
-            ORDER BY c.created_at DESC
-            """;
+        // Get all campaigns for the company
+        List<Campaign> campaigns = campaignRepository.findByCompanyId(company.getId());
+        log.debug("Found {} campaigns for company", campaigns.size());
 
-        Query query = entityManager.createNativeQuery(sql);
-        query.setParameter("companyId", company.getId());
+        List<CampaignOverviewItem> campaignItems = campaigns.stream()
+                .map(campaign -> {
+                    // Count referrals and clicks for this campaign
+                    String referralSql = """
+                        SELECT 
+                            COUNT(DISTINCT r.id) as referralCount,
+                            COUNT(DISTINCT rc.id) as clickCount
+                        FROM referrals r
+                        LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
+                        WHERE r.campaign_id = :campaignId
+                        """;
+                    Query referralQuery = entityManager.createNativeQuery(referralSql);
+                    referralQuery.setParameter("campaignId", campaign.getId());
+                    Object[] referralResult = (Object[]) referralQuery.getSingleResult();
+                    
+                    Long referralCount = referralResult[0] != null ? ((Number) referralResult[0]).longValue() : 0L;
+                    Long clickCount = referralResult[1] != null ? ((Number) referralResult[1]).longValue() : 0L;
 
-        @SuppressWarnings("unchecked")
-        List<Object[]> results = query.getResultList();
-
-        List<CampaignOverviewItem> campaigns = results.stream()
-                .map(row -> {
-                    Long campaignId = ((Number) row[0]).longValue();
-                    String campaignName = (String) row[1];
-                    String status = (String) row[2];
-                    Long referralCount = ((Number) row[3]).longValue();
-                    Long clickCount = ((Number) row[4]).longValue();
-                    Long conversionCount = ((Number) row[5]).longValue();
+                    // Count conversions for this campaign
+                    String conversionSql = """
+                        SELECT COUNT(DISTINCT id) FROM conversions WHERE campaign_id = :campaignId
+                        """;
+                    Query conversionQuery = entityManager.createNativeQuery(conversionSql);
+                    conversionQuery.setParameter("campaignId", campaign.getId());
+                    Long conversionCount = ((Number) conversionQuery.getSingleResult()).longValue();
 
                     Double conversionRate = referralCount > 0
                             ? (conversionCount * 100.0 / referralCount)
                             : 0.0;
 
                     return new CampaignOverviewItem(
-                            campaignId,
-                            campaignName,
-                            status,
+                            campaign.getId(),
+                            campaign.getName(),
+                            campaign.getStatus().name(),
                             referralCount,
                             clickCount,
                             conversionCount,
@@ -79,11 +85,14 @@ public class DashboardService {
                 })
                 .collect(Collectors.toList());
 
-        return new CampaignsOverviewResponse(
+        CampaignsOverviewResponse response = new CampaignsOverviewResponse(
                 company.getId(),
                 company.getName(),
-                campaigns
+                campaignItems
         );
+        
+        log.debug("Returning campaigns overview with {} campaigns", campaignItems.size());
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -216,19 +225,41 @@ public class DashboardService {
                 pu.external_user_id,
                 pu.name,
                 pu.email,
-                COUNT(DISTINCT r.id) as referralCount,
-                COUNT(DISTINCT rc.id) as clickCount,
-                COUNT(DISTINCT conv.id) as conversionCount,
-                COALESCE(SUM(rw.reward_value), 0) as totalRewards
+                COALESCE(r_stats.referralCount, 0) as referralCount,
+                COALESCE(r_stats.clickCount, 0) as clickCount,
+                COALESCE(conv_stats.conversionCount, 0) as conversionCount,
+                COALESCE(rw_stats.totalRewards, 0) as totalRewards
             FROM platform_users pu
-            LEFT JOIN referrals r ON r.referrer_user_id = pu.id AND r.campaign_id = :campaignId
-            LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
-            LEFT JOIN conversions conv ON conv.referrer_user_id = pu.id AND conv.campaign_id = :campaignId
-            LEFT JOIN rewards rw ON rw.user_id = pu.id AND rw.campaign_id = :campaignId
+            LEFT JOIN (
+                SELECT 
+                    r.referrer_user_id,
+                    COUNT(DISTINCT r.id) as referralCount,
+                    COUNT(DISTINCT rc.id) as clickCount
+                FROM referrals r
+                LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
+                WHERE r.campaign_id = :campaignId
+                GROUP BY r.referrer_user_id
+            ) r_stats ON r_stats.referrer_user_id = pu.id
+            LEFT JOIN (
+                SELECT 
+                    referrer_user_id,
+                    COUNT(DISTINCT id) as conversionCount
+                FROM conversions
+                WHERE campaign_id = :campaignId
+                GROUP BY referrer_user_id
+            ) conv_stats ON conv_stats.referrer_user_id = pu.id
+            LEFT JOIN (
+                SELECT 
+                    user_id,
+                    SUM(reward_value) as totalRewards
+                FROM rewards
+                WHERE campaign_id = :campaignId
+                GROUP BY user_id
+            ) rw_stats ON rw_stats.user_id = pu.id
             WHERE pu.company_id = :companyId
-            GROUP BY pu.id, pu.external_user_id, pu.name, pu.email
-            HAVING COUNT(DISTINCT r.id) > 0
-            ORDER BY conversionCount DESC, referralCount DESC
+              AND COALESCE(r_stats.referralCount, 0) > 0
+            ORDER BY COALESCE(conv_stats.conversionCount, 0) DESC, 
+                     COALESCE(r_stats.referralCount, 0) DESC
             LIMIT :limit
             """;
 

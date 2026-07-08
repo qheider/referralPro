@@ -64,7 +64,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // Extract API key from Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("ApiKey ")) {
-            log.warn("Missing or invalid Authorization header for path: {}", path);
+            log.warn("cl header for path: {}", path);
             sendUnauthorizedResponse(response, "Missing or invalid API key");
             return;
         }

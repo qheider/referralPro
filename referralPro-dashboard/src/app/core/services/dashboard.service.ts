@@ -19,10 +19,14 @@ export class DashboardService {
   constructor(private http: HttpClient) {}
 
   getCampaignsOverview(): Observable<CampaignsOverviewResponse> {
+    console.log('getCampaignsOverview: Making HTTP request to', `${environment.apiUrl}/dashboard/campaigns/overview`);
     return this.http
       .get<ApiResponse<CampaignsOverviewResponse>>(`${environment.apiUrl}/dashboard/campaigns/overview`)
       .pipe(
-        map(response => this.unwrapResponse(response, 'Campaign overview request did not return data')),
+        map(response => {
+          console.log('getCampaignsOverview: Raw HTTP response:', response);
+          return this.unwrapResponse(response, 'Campaign overview request did not return data');
+        }),
         catchError(error => {
           console.error('Failed to load campaign overview:', error);
           return throwError(() => error);
@@ -93,10 +97,29 @@ export class DashboardService {
   }
 
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
-    if (!response.success || response.data === undefined) {
-      throw new Error(response.message || fallbackMessage);
+    console.log('Dashboard service unwrapResponse called with:', response);
+    
+    if (!response) {
+      const error = 'Empty response from server';
+      console.error(error);
+      throw new Error(error);
     }
 
+    console.log('Response success:', response.success);
+    if (!response.success) {
+      const errorMsg = response.message || fallbackMessage;
+      console.error('API returned success=false:', errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    console.log('Response data:', response.data);
+    if (response.data === undefined || response.data === null) {
+      const errorMsg = 'API returned no data: ' + (response.message || fallbackMessage);
+      console.error(errorMsg);
+      throw new Error(errorMsg);
+    }
+
+    console.log('Dashboard service returning unwrapped data');
     return response.data;
   }
 }

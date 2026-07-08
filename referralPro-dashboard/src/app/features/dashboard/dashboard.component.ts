@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
@@ -62,7 +62,9 @@ export class DashboardComponent implements OnInit {
 
   constructor(
     private authService: AuthService,
-    private dashboardService: DashboardService
+    private dashboardService: DashboardService,
+    private ngZone: NgZone,
+    private cdr: ChangeDetectorRef
   ) {}
 
   ngOnInit(): void {
@@ -132,30 +134,42 @@ export class DashboardComponent implements OnInit {
   }
 
   private loadOverview(): void {
+    console.log('loadOverview: Starting to load campaigns overview');
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.dashboardService
-      .getCampaignsOverview()
-      .pipe(finalize(() => (this.isLoading = false)))
-      .subscribe({
-        next: overview => {
-          this.overview = overview;
-          this.lastUpdated = new Date();
+    // Wrap in ngZone.run to ensure change detection happens
+    this.ngZone.run(() => {
+      this.dashboardService
+        .getCampaignsOverview()
+        .pipe(finalize(() => {
+          console.log('loadOverview: finalize called, setting isLoading to false');
+          this.isLoading = false;
+          // Explicitly trigger change detection
+          this.cdr.markForCheck();
+        }))
+        .subscribe({
+          next: overview => {
+            console.log('loadOverview: next handler called with overview:', overview);
+            this.overview = overview;
+            this.lastUpdated = new Date();
 
-          if (!this.availableStatuses.includes(this.selectedStatus)) {
-            this.selectedStatus = 'ALL';
+            if (!this.availableStatuses.includes(this.selectedStatus)) {
+              this.selectedStatus = 'ALL';
+            }
+
+            this.updateCharts();
+            // Explicitly trigger change detection after updating component properties
+            this.cdr.detectChanges();
+          },
+          error: error => {
+            console.error('Dashboard overview failed:', error);
+            this.errorMessage = extractApiErrorMessage(error, 'Unable to load dashboard overview.');
+            this.overview = null;
+            this.updateCharts();
           }
-
-          this.updateCharts();
-        },
-        error: error => {
-          console.error('Dashboard overview failed:', error);
-          this.errorMessage = extractApiErrorMessage(error, 'Unable to load dashboard overview.');
-          this.overview = null;
-          this.updateCharts();
-        }
-      });
+        });
+    });
   }
 
   private updateCharts(): void {

@@ -14,6 +14,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   
   // Get token from auth service
   const token = authService.getToken();
+  console.log('authInterceptor: Processing request to', req.url, 'with token:', token ? 'YES' : 'NO');
   
   // Clone request and add Authorization header if token exists
   let authReq = req;
@@ -28,6 +29,7 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   // Handle the request and catch authentication errors
   return next(authReq).pipe(
     catchError(error => {
+      console.error('authInterceptor: HTTP error for', req.url, ':', error);
       // If 401 Unauthorized, logout and redirect to login
       if (error.status === 401) {
         authService.logout();

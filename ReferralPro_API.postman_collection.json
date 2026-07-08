@@ -72,8 +72,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "body": {
@@ -98,8 +98,8 @@
                     "value": "application/json"
                   },
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "body": {
@@ -125,8 +125,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "url": {
@@ -143,8 +143,8 @@
                 "method": "GET",
                 "header": [
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "url": {
@@ -156,7 +156,7 @@
               "status": "OK",
               "code": 200,
               "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"companyId\": 1,\n      \"name\": \"Summer Referral Campaign\",\n      \"description\": \"Get $10 for every friend you refer\",\n      \"landingPageUrl\": \"https://example.com/summer-promo\",\n      \"startDate\": \"2024-06-01T00:00:00\",\n      \"endDate\": \"2024-08-31T23:59:59\",\n      \"rewardType\": \"DISCOUNT_CODE\",\n      \"referrerRewardValue\": 10.00,\n      \"refereeRewardValue\": 5.00,\n      \"conversionEventName\": \"purchase_completed\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"companyId\": 1,\n      \"name\": \"Summer Referral Campaign\",\n      \"description\": \"Get $10 for every friend you refer\",\n      \"landingPageUrl\": \"https://example.com/summer-promo\",\n      \"startDate\": \"2024-06-01T00:00:00\",\n      \"endDate\": \"2024-08-31T23:59:59\",\n      \"rewardType\": \"DISCOUNT_AMOUNT\",\n      \"referrerRewardValue\": 10.00,\n      \"refereeRewardValue\": 5.00,\n      \"conversionEventName\": \"purchase_completed\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
             }
           ]
         },
@@ -166,8 +166,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "url": {
@@ -184,8 +184,8 @@
                 "method": "GET",
                 "header": [
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "url": {
@@ -216,8 +216,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "body": {
@@ -242,8 +242,8 @@
                     "value": "application/json"
                   },
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "body": {
@@ -314,8 +314,8 @@
                 "value": "application/json"
               },
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "body": {
@@ -340,8 +340,8 @@
                     "value": "application/json"
                   },
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "body": {
@@ -372,8 +372,8 @@
             "method": "GET",
             "header": [
               {
-                "key": "X-API-Key",
-                "value": "{{api_key}}"
+                "key": "Authorization",
+                "value": "ApiKey {{api_key}}"
               }
             ],
             "url": {
@@ -390,8 +390,8 @@
                 "method": "GET",
                 "header": [
                   {
-                    "key": "X-API-Key",
-                    "value": "{{api_key}}"
+                    "key": "Authorization",
+                    "value": "ApiKey {{api_key}}"
                   }
                 ],
                 "url": {
