@@ -78,7 +78,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_CODE\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
+              "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_AMOUNT\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
@@ -104,7 +104,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_CODE\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
+                  "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_AMOUNT\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
                 },
                 "url": {
                   "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
@@ -115,7 +115,7 @@
               "status": "Created",
               "code": 201,
               "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign created successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_CODE\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign created successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_AMOUNT\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
             }
           ]
         },
@@ -197,7 +197,7 @@
               "status": "OK",
               "code": 200,
               "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_CODE\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_AMOUNT\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
             }
           ]
         }
@@ -403,7 +403,7 @@
               "status": "OK",
               "code": 200,
               "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"externalUserId\": \"user_12345\",\n    \"rewards\": [\n      {\n        \"id\": 1,\n        \"couponCode\": \"REWARD_ABC123\",\n        \"rewardType\": \"DISCOUNT_CODE\",\n        \"rewardValue\": 10.00,\n        \"status\": \"ACTIVE\"\n      },\n      {\n        \"id\": 2,\n        \"couponCode\": \"REWARD_DEF456\",\n        \"rewardType\": \"DISCOUNT_CODE\",\n        \"rewardValue\": 5.00,\n        \"status\": \"PENDING\"\n      }\n    ]\n  }\n}"
+              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"externalUserId\": \"user_12345\",\n    \"rewards\": [\n      {\n        \"id\": 1,\n        \"couponCode\": \"REWARD_ABC123\",\n        \"rewardType\": \"DISCOUNT_AMOUNT\",\n        \"rewardValue\": 10.00,\n        \"status\": \"ACTIVE\"\n      },\n      {\n        \"id\": 2,\n        \"couponCode\": \"REWARD_DEF456\",\n        \"rewardType\": \"DISCOUNT_AMOUNT\",\n        \"rewardValue\": 5.00,\n        \"status\": \"PENDING\"\n      }\n    ]\n  }\n}"
             }
           ]
         }
