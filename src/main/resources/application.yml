@@ -1,12 +1,17 @@
 spring:
   application:
     name: referral-platform
-
   datasource:
-    url: jdbc:mysql://localhost:3307/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: referral_user
-    password: referral_pass
+    url: jdbc:mysql://100.122.180.92:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: quazisr
+    password: Heartcore123!
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  #datasource:
+   # url: jdbc:mysql://localhost:3307/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    #username: referral_user
+    #password: referral_pass
+    #driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
