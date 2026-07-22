@@ -1,24 +1,24 @@
 version: "3.9"
 
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: referral-mysql
-    environment:
-      MYSQL_DATABASE: referral_platform
-      MYSQL_USER: referral_user
-      MYSQL_PASSWORD: referral_pass
-      MYSQL_ROOT_PASSWORD: root_pass
-    ports:
-      - "3307:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 5s
-      retries: 10
-    networks:
-      - referral-network
+  # mysql:
+  #   image: mysql:8.4
+  #   container_name: referral-mysql
+  #   environment:
+  #     MYSQL_DATABASE: referral_platform
+  #     MYSQL_USER: referral_user
+  #     MYSQL_PASSWORD: referral_pass
+  #     MYSQL_ROOT_PASSWORD: root_pass
+  #   ports:
+  #     - "3307:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     timeout: 5s
+  #     retries: 10
+  #   networks:
+  #     - referral-network
 
   backend:
     build:
@@ -26,15 +26,15 @@ services:
       dockerfile: Dockerfile
     container_name: referral-backend
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: referral_user
-      SPRING_DATASOURCE_PASSWORD: referral_pass
+      SPRING_DATASOURCE_URL: jdbc:mysql://100.122.180.92:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: quazisr
+      SPRING_DATASOURCE_PASSWORD: Heartcore123!
       APP_BASE_URL: http://localhost:8080
     ports:
       - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
+    # depends_on:
+    #   mysql:
+    #     condition: service_healthy
     networks:
       - referral-network
     restart: unless-stopped
