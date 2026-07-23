@@ -58,10 +58,19 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of(
+        // Use allowedOriginPatterns to support wildcards for local development
+        configuration.setAllowedOriginPatterns(List.of(
             "http://localhost",           // Docker frontend (port 80)
-            "http://localhost:4200",      // Angular dev server
-            "http://localhost:3000"       // Alternative dev port
+            "http://localhost:*",         // Any localhost port
+            "http://127.0.0.1",           // Localhost IP (port 80)
+            "http://127.0.0.1:*",         // Localhost IP (any port)
+            "http://192.168.*.*",         // Local network (192.168.x.x)
+            "http://192.168.*.*:*",       // Local network with port
+            "http://10.*.*.*",            // Local network (10.x.x.x)
+            "http://10.*.*.*:*",          // Local network with port
+            "http://172.16.*.*",          // Local network (172.16-31.x.x)
+            "http://172.16.*.*:*",         // Local network with port
+            "http://100.122.180.92:*"      // tailscale network with port for basement desktop
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
