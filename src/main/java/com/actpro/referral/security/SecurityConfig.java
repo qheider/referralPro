@@ -70,6 +70,9 @@ public class SecurityConfig {
             "http://10.*.*.*:*",          // Local network with port
             "http://172.16.*.*",          // Local network (172.16-31.x.x)
             "http://172.16.*.*:*",         // Local network with port
+            "http://100.93.215.82",         // Local tailscale network 
+            "http://100.93.215.82:*",         // Local tailscale network with port
+            "http://100.122.180.92",
             "http://100.122.180.92:*"      // tailscale network with port for basement desktop
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
