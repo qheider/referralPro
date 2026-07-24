@@ -28,7 +28,11 @@ public class Company extends BaseEntity {
 
     // Company Details
     private String website;
+
+    @Column(length = 100)
     private String industry;
+
+    @Column(length = 100)
     private String country;
     
     @Column(name = "tax_id")
