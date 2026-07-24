@@ -1,0 +1,271 @@
+<div class="register-container">
+  <div class="register-card">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <h1>ReferralPro</h1>
+    </div>
+
+    <div class="progress-bar">
+      <div class="progress-step" [class.active]="currentStep >= 1" [class.completed]="currentStep > 1">
+        <div class="step-number">1</div>
+        <div class="step-label">Company</div>
+      </div>
+      <div class="progress-line" [class.completed]="currentStep > 1"></div>
+      <div class="progress-step" [class.active]="currentStep >= 2" [class.completed]="currentStep > 2">
+        <div class="step-number">2</div>
+        <div class="step-label">Admin</div>
+      </div>
+      <div class="progress-line" [class.completed]="currentStep > 2"></div>
+      <div class="progress-step" [class.active]="currentStep >= 3" [class.completed]="currentStep > 3">
+        <div class="step-number">3</div>
+        <div class="step-label">Details</div>
+      </div>
+      <div class="progress-line" [class.completed]="currentStep > 3"></div>
+      <div class="progress-step" [class.active]="currentStep >= 4">
+        <div class="step-number">4</div>
+        <div class="step-label">Finish</div>
+      </div>
+    </div>
+
+    <form [formGroup]="registrationForm" (ngSubmit)="onSubmit()">
+      <!-- Step 1: Company Information -->
+      <div class="form-step" *ngIf="currentStep === 1">
+        <h2>Company Information</h2>
+
+        <div class="form-group">
+          <label for="companyName">Company Name *</label>
+          <input type="text" id="companyName" formControlName="companyName" placeholder="Acme Inc." />
+        </div>
+
+        <div class="form-group">
+          <label for="companyEmail">Company Email *</label>
+          <input type="email" id="companyEmail" formControlName="companyEmail" placeholder="contact@acme.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="companyWebsite">Company Website *</label>
+          <input type="url" id="companyWebsite" formControlName="companyWebsite" placeholder="https://acme.com" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="industry">Industry *</label>
+            <select id="industry" formControlName="industry">
+              <option value="">Select Industry</option>
+              <option *ngFor="let ind of industries" [value]="ind">{{ ind }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="country">Country *</label>
+            <select id="country" formControlName="country">
+              <option value="">Select Country</option>
+              <option *ngFor="let c of countries" [value]="c">{{ c }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="companySize">Company Size *</label>
+            <select id="companySize" formControlName="companySize">
+              <option value="">Select Size</option>
+              <option *ngFor="let size of companySizes" [value]="size">{{ size }} employees</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="preferredCurrency">Preferred Currency *</label>
+            <select id="preferredCurrency" formControlName="preferredCurrency">
+              <option *ngFor="let curr of currencies" [value]="curr">{{ curr }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="taxId">Tax ID / VAT Number</label>
+          <input type="text" id="taxId" formControlName="taxId" placeholder="Optional" />
+        </div>
+
+        <div class="form-group">
+          <label for="companyDescription">Company Description</label>
+          <textarea id="companyDescription" formControlName="companyDescription" rows="3" 
+            placeholder="Brief description of your company..."></textarea>
+        </div>
+      </div>
+
+      <!-- Step 2: Admin Account -->
+      <div class="form-step" *ngIf="currentStep === 2">
+        <h2>Admin Account Details</h2>
+
+        <div class="form-group">
+          <label for="adminFullName">Full Name *</label>
+          <input type="text" id="adminFullName" formControlName="adminFullName" placeholder="John Doe" />
+        </div>
+
+        <div class="form-group">
+          <label for="adminWorkEmail">Work Email *</label>
+          <input type="email" id="adminWorkEmail" formControlName="adminWorkEmail" placeholder="john@acme.com" />
+        </div>
+
+        <div class="form-group">
+          <label for="adminPhone">Phone Number *</label>
+          <input type="tel" id="adminPhone" formControlName="adminPhone" placeholder="+1 234 567 8900" />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password *</label>
+          <input type="password" id="password" formControlName="password" placeholder="Min. 8 characters" />
+          <small class="help-text">At least 8 characters</small>
+        </div>
+
+        <div class="form-group">
+          <label for="confirmPassword">Confirm Password *</label>
+          <input type="password" id="confirmPassword" formControlName="confirmPassword" placeholder="Re-enter password" />
+          <small class="error-text" *ngIf="registrationForm.errors?.['passwordMismatch'] && 
+            registrationForm.get('confirmPassword')?.touched">
+            Passwords do not match
+          </small>
+        </div>
+      </div>
+
+      <!-- Step 3: Additional Details (Optional) -->
+      <div class="form-step" *ngIf="currentStep === 3">
+        <h2>Additional Details <span class="optional">(Optional)</span></h2>
+
+        <h3>Business Address</h3>
+        <div class="form-group">
+          <label for="addressStreet">Street Address</label>
+          <input type="text" id="addressStreet" formControlName="addressStreet" placeholder="123 Main St" />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="addressCity">City</label>
+            <input type="text" id="addressCity" formControlName="addressCity" />
+          </div>
+
+          <div class="form-group">
+            <label for="addressState">State/Province</label>
+            <input type="text" id="addressState" formControlName="addressState" />
+          </div>
+
+          <div class="form-group">
+            <label for="addressZip">ZIP/Postal Code</label>
+            <input type="text" id="addressZip" formControlName="addressZip" />
+          </div>
+        </div>
+
+        <h3>Social Media</h3>
+        <div class="form-group">
+          <label for="linkedinUrl">LinkedIn URL</label>
+          <input type="url" id="linkedinUrl" formControlName="linkedinUrl" placeholder="https://linkedin.com/company/..." />
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="twitterUrl">Twitter URL</label>
+            <input type="url" id="twitterUrl" formControlName="twitterUrl" placeholder="https://twitter.com/..." />
+          </div>
+
+          <div class="form-group">
+            <label for="facebookUrl">Facebook URL</label>
+            <input type="url" id="facebookUrl" formControlName="facebookUrl" placeholder="https://facebook.com/..." />
+          </div>
+        </div>
+
+        <h3>Additional Contacts</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="secondaryContactName">Secondary Contact</label>
+            <input type="text" id="secondaryContactName" formControlName="secondaryContactName" />
+          </div>
+
+          <div class="form-group">
+            <label for="department">Department</label>
+            <input type="text" id="department" formControlName="department" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="referralProgramManager">Referral Program Manager</label>
+          <input type="text" id="referralProgramManager" formControlName="referralProgramManager" />
+        </div>
+      </div>
+
+      <!-- Step 4: Business Preferences & Terms -->
+      <div class="form-step" *ngIf="currentStep === 4">
+        <h2>Business Preferences</h2>
+
+        <div class="form-group">
+          <label for="estimatedMonthlyReferralVolume">Estimated Monthly Referral Volume</label>
+          <input type="number" id="estimatedMonthlyReferralVolume" formControlName="estimatedMonthlyReferralVolume" 
+            placeholder="e.g., 100" />
+        </div>
+
+        <div class="form-group">
+          <label for="rewardTypePreference">Reward Type Preference</label>
+          <select id="rewardTypePreference" formControlName="rewardTypePreference">
+            <option value="">Select Preference</option>
+            <option *ngFor="let type of rewardTypes" [value]="type">{{ type | titlecase }}</option>
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="referralSource">How did you hear about us?</label>
+            <input type="text" id="referralSource" formControlName="referralSource" placeholder="e.g., Google Search" />
+          </div>
+
+          <div class="form-group">
+            <label for="signupReferralCode">Referral Code</label>
+            <input type="text" id="signupReferralCode" formControlName="signupReferralCode" placeholder="If you have one" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="gstVatNumber">GST/VAT Number</label>
+          <input type="text" id="gstVatNumber" formControlName="gstVatNumber" />
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="dpaAccepted" formControlName="dpaAccepted" />
+          <label for="dpaAccepted">I accept the Data Processing Agreement</label>
+        </div>
+
+        <div class="checkbox-group">
+          <input type="checkbox" id="acceptedTerms" formControlName="acceptedTerms" />
+          <label for="acceptedTerms">
+            I accept the <a href="#" target="_blank">Terms and Conditions</a> *
+          </label>
+        </div>
+
+        <div class="error-message" *ngIf="error">
+          {{ error }}
+        </div>
+      </div>
+
+      <!-- Navigation Buttons -->
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" *ngIf="currentStep > 1" 
+          (click)="previousStep()" [disabled]="loading">
+          Previous
+        </button>
+
+        <button type="button" class="btn-primary" *ngIf="currentStep < totalSteps" 
+          (click)="nextStep()" [disabled]="!canProceedToNextStep() || loading">
+          Next
+        </button>
+
+        <button type="submit" class="btn-primary" *ngIf="currentStep === totalSteps" 
+          [disabled]="!registrationForm.valid || loading">
+          {{ loading ? 'Registering...' : 'Complete Registration' }}
+        </button>
+      </div>
+    </form>
+
+    <div class="login-link">
+      Already have an account? <a routerLink="/login">Sign in</a>
+    </div>
+  </div>
+</div>

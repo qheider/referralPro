@@ -6,6 +6,11 @@ spring:
     username: quazisr
     password: Heartcore123!
     driver-class-name: com.mysql.cj.jdbc.Driver
+#  datasource:
+ #   url: jdbc:mysql://localhost:3307/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+  #  username: referral_user
+  #  password: referral_pass
+  #  driver-class-name: com.mysql.cj.jdbc.Driver
 
   #datasource:
    # url: jdbc:mysql://localhost:3307/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
