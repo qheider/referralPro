@@ -5,12 +5,12 @@ services:
   #   image: mysql:8.4
   #   container_name: referral-mysql
   #   environment:
-  #     MYSQL_DATABASE: referral_platform
-  #     MYSQL_USER: referral_user
-  #     MYSQL_PASSWORD: referral_pass
-  #     MYSQL_ROOT_PASSWORD: root_pass
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-referral_platform}
+  #     MYSQL_USER: ${MYSQL_USER:-referral_user}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-referral_pass}
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
   #   ports:
-  #     - "3307:3306"
+  #     - "3306:3306"
   #   volumes:
   #     - mysql_data:/var/lib/mysql
   #   healthcheck:
@@ -25,11 +25,15 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: referral-backend
+    env_file:
+      - .env
     environment:
-      SPRING_DATASOURCE_URL: jdbc:mysql://100.122.180.92:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-      SPRING_DATASOURCE_USERNAME: quazisr
-      SPRING_DATASOURCE_PASSWORD: Heartcore123!
-      APP_BASE_URL: http://localhost:8080
+      SPRING_DATASOURCE_URL: ${DATABASE_URL}
+      SPRING_DATASOURCE_USERNAME: ${DATABASE_USER}
+      SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD}
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
     ports:
       - "8080:8080"
     # depends_on:

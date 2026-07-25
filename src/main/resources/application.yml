@@ -2,15 +2,10 @@ spring:
   application:
     name: referral-platform
   datasource:
-    url: jdbc:mysql://100.122.180.92:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-    username: quazisr
-    password: Heartcore123!
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DATABASE_USER:referral_user}
+    password: ${DATABASE_PASSWORD:referral_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
-#  datasource:
- #   url: jdbc:mysql://localhost:3307/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
-  #  username: referral_user
-  #  password: referral_pass
-  #  driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
     hibernate:
@@ -34,10 +29,10 @@ server:
     include-binding-errors: always
 
 app:
-  base-url: http://localhost:8080
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   jwt:
-    secret: your-secret-key-change-this-in-production-min-256-bits
-    expiration-minutes: 120
+    secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
 
 logging:
   level:
