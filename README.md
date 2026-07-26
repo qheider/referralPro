@@ -116,12 +116,25 @@ This guide will help you set up and run both the backend API and the frontend da
 
 ### Quick Start (Both Backend & Dashboard)
 
-1. **Start MySQL Database**
+1. **Configure Environment Variables**
+   
+   Copy the environment template and configure your local settings:
+   ```bash
+   # Copy the template
+   copy .env.example .env
+   
+   # Edit .env with your settings (optional - defaults are set for local development)
+   ```
+   
+   The `.env` file contains database credentials, JWT secrets, and other configuration.
+   **Never commit `.env` to version control** - it's already in `.gitignore`.
+
+2. **Start MySQL Database**
    ```bash
    docker-compose up -d
    ```
 
-2. **Start the Backend API**
+3. **Start the Backend API**
    ```bash
    # On Windows
    .\mvnw.cmd clean install
@@ -134,7 +147,7 @@ This guide will help you set up and run both the backend API and the frontend da
    
    Backend will be available at `http://localhost:8080`
 
-3. **Start the Dashboard**
+4. **Start the Dashboard**
    ```bash
    cd referralPro-dashboard
    npm install
@@ -168,18 +181,31 @@ Once both applications are running, you can access:
 
 ## Backend Setup (Spring Boot API)
 
-### 1. Start MySQL Database
+### 1. Configure Environment Variables
+
+Copy `.env.example` to `.env` and update with your settings:
+
+```bash
+copy .env.example .env
+```
+
+The default values in `.env` are configured for local Docker Compose development:
+- **DATABASE_URL**: `jdbc:mysql://mysql:3306/referral_platform` (uses internal Docker service)
+- **DATABASE_USER**: `referral_user`
+- **DATABASE_PASSWORD**: `referral_pass`
+- **JWT_SECRET**: Change this for production!
+
+For production deployments, use your orchestration platform's secrets management (Kubernetes Secrets, AWS Parameter Store, etc.) instead of the `.env` file.
+
+### 2. Start MySQL Database
 
 ```bash
 docker-compose up -d
 ```
 
-This will start a MySQL 8.4 container on port 3306 with the following credentials:
-- Database: `referral_platform`
-- Username: `root`
-- Password: `rootpassword`
+This will start a MySQL 8.4 container on port 3306 using credentials from your `.env` file.
 
-### 2. Build the Backend
+### 3. Build the Backend
 
 ```bash
 # On Windows
@@ -189,7 +215,7 @@ This will start a MySQL 8.4 container on port 3306 with the following credential
 ./mvnw clean install
 ```
 
-### 3. Run the Backend
+### 4. Run the Backend
 
 ```bash
 # On Windows
@@ -558,17 +584,66 @@ docker-compose up -d --build
 
 ## Configuration
 
+### Environment Variables
+
+ReferralPro uses environment variables for all sensitive configuration. Configuration is loaded from:
+1. `.env` file (local development, automatically loaded via spring-dotenv)
+2. System environment variables (production)
+3. Docker Compose environment variables
+
+**Required Environment Variables:**
+
+| Variable | Description | Default (Local Dev) | Example |
+|----------|-------------|---------------------|---------|
+| `DATABASE_URL` | JDBC connection string | `jdbc:mysql://mysql:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC` | `jdbc:mysql://prod-db:3306/referral_platform?useSSL=true` |
+| `DATABASE_USER` | Database username | `referral_user` | `prod_user` |
+| `DATABASE_PASSWORD` | Database password | `referral_pass` | `secure_password_here` |
+| `JWT_SECRET` | JWT signing secret (min 256 bits) | `local-dev-secret-key...` | Generate with: `openssl rand -base64 32` |
+| `JWT_EXPIRATION_MINUTES` | JWT token lifetime | `120` | `60` |
+| `APP_BASE_URL` | Application base URL | `http://localhost:8080` | `https://api.yourcompany.com` |
+
+**MySQL Docker Service Variables** (when using docker-compose MySQL service):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MYSQL_DATABASE` | Database name | `referral_platform` |
+| `MYSQL_USER` | MySQL user | `referral_user` |
+| `MYSQL_PASSWORD` | MySQL password | `referral_pass` |
+| `MYSQL_ROOT_PASSWORD` | MySQL root password | `root_pass` |
+
+### Local Development Setup
+
+1. **Copy the environment template:**
+   ```bash
+   copy .env.example .env
+   ```
+
+2. **Edit `.env` if needed** (defaults are already configured for local Docker Compose)
+
+3. **Never commit `.env`** - it's git-ignored and contains secrets
+
+### Production Deployment
+
+**Do NOT use `.env` files in production.** Instead, use your orchestration platform's secrets management:
+
+- **Kubernetes**: Secrets and ConfigMaps
+- **Docker Swarm**: Docker Secrets
+- **AWS**: Systems Manager Parameter Store or Secrets Manager
+- **Azure**: Key Vault
+- **GCP**: Secret Manager
+- **Heroku/Render**: Dashboard environment variables
+
 ### Backend Configuration
 
 Main configuration is in `src/main/resources/application.yml`:
 
-**Database Settings:**
+**Database Settings** (uses environment variables):
 ```yaml
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/referral_platform
-    username: root
-    password: rootpassword
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/referral_platform?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${DATABASE_USER:referral_user}
+    password: ${DATABASE_PASSWORD:referral_pass}
 ```
 
 **JPA/Hibernate:**
@@ -576,17 +651,17 @@ spring:
 spring:
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: none
     show-sql: true
 ```
 
-**Application Settings:**
+**Application Settings** (uses environment variables):
 ```yaml
 app:
-  base-url: http://localhost:8080
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   jwt:
-    secret: your-secret-key-min-256-bits
-    expiration: 86400000  # 24 hours
+    secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
 ```
 
 **Flyway:**

@@ -11,4 +11,5 @@ public class RegisterCompanyResponse {
     private Long companyId;
     private String name;
     private String apiKey;
+    private String adminEmail;
 }

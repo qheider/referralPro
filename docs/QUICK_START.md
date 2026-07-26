@@ -44,13 +44,24 @@ The Referral Marketing Platform has been implemented with all core features.
 
 ## Next Steps
 
-### 1. Start MySQL (requires Docker Desktop)
+### 1. Configure Environment (First Time Setup)
+
+```bash
+# Copy the environment template to .env
+copy .env.example .env
+```
+
+The `.env` file contains all necessary configuration (database credentials, JWT secrets, etc.).
+Default values are already set for local Docker Compose development.
+**Never commit `.env` to version control!**
+
+### 2. Start MySQL (requires Docker Desktop)
 
 ```bash
 docker-compose up -d
 ```
 
-### 2. Run the Application
+### 3. Run the Application
 
 ```bash
 ./mvnw spring-boot:run

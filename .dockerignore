@@ -1,0 +1,41 @@
+# Git
+.git
+.gitignore
+
+# Maven
+target/
+!target/*.jar
+.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Logs
+*.log
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Test files
+src/test/
+
+# SQL files
+*.sql
+
+# Other
+.DS_Store
+Thumbs.db
+
+# Angular dashboard (backend doesn't need it)
+referralPro-dashboard/
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

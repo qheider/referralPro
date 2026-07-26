@@ -7,6 +7,8 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
@@ -56,9 +58,30 @@ public class SecurityConfig {
     }
 
     @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
+
+    @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4200", "http://localhost:3000"));
+        // Use allowedOriginPatterns to support wildcards for local development
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost",           // Docker frontend (port 80)
+            "http://localhost:*",         // Any localhost port
+            "http://127.0.0.1",           // Localhost IP (port 80)
+            "http://127.0.0.1:*",         // Localhost IP (any port)
+            "http://192.168.*.*",         // Local network (192.168.x.x)
+            "http://192.168.*.*:*",       // Local network with port
+            "http://10.*.*.*",            // Local network (10.x.x.x)
+            "http://10.*.*.*:*",          // Local network with port
+            "http://172.16.*.*",          // Local network (172.16-31.x.x)
+            "http://172.16.*.*:*",         // Local network with port
+            "http://100.93.215.82",         // Local tailscale network 
+            "http://100.93.215.82:*",         // Local tailscale network with port
+            "http://100.122.180.92",
+            "http://100.122.180.92:*"      // tailscale network with port for basement desktop
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
