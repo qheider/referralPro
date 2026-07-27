@@ -4,10 +4,11 @@ import com.actpro.referral.auth.dto.CurrentUserResponse;
 import com.actpro.referral.auth.dto.LoginRequest;
 import com.actpro.referral.auth.dto.LoginResponse;
 import com.actpro.referral.common.ApiResponse;
+import com.actpro.referral.security.CurrentUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final CurrentUserService currentUserService;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
@@ -26,9 +28,9 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<ApiResponse<CurrentUserResponse>> getCurrentUser(Authentication authentication) {
-        Long userId = (Long) authentication.getPrincipal();
-        CurrentUserResponse response = authService.getCurrentUser(userId);
+    @PreAuthorize("hasAnyRole('PLATFORM_ADMIN', 'COMPANY_ADMIN', 'AMBASSADOR')")
+    public ResponseEntity<ApiResponse<CurrentUserResponse>> getCurrentUser() {
+        CurrentUserResponse response = authService.getCurrentUser(currentUserService.getCurrentUserId());
         return ResponseEntity.ok(
                 new ApiResponse<>(true, "User retrieved successfully", response)
         );

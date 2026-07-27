@@ -1,8 +1,9 @@
 package com.actpro.referral.security;
 
+import com.actpro.referral.auth.DashboardUser;
+import com.actpro.referral.auth.DashboardUserRepository;
 import com.actpro.referral.auth.JwtTokenProvider;
-import com.actpro.referral.company.Company;
-import com.actpro.referral.company.CompanyRepository;
+import com.actpro.referral.auth.UserStatus;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -24,7 +25,7 @@ import java.util.Collections;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final CompanyRepository companyRepository;
+    private final DashboardUserRepository dashboardUserRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,18 +40,27 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = jwtTokenProvider.getUsernameFromToken(jwt);
                 String role = jwtTokenProvider.getRoleFromToken(jwt);
 
-                // Load company for context
-                Company company = companyRepository.findById(companyId).orElse(null);
+                DashboardUser user = dashboardUserRepository.findByIdWithCompany(userId).orElse(null);
 
-                if (company != null) {
+                if (user != null
+                        && user.getStatus() == UserStatus.ACTIVE
+                        && user.getCompany() != null
+                        && user.getCompany().getId().equals(companyId)
+                        && user.getUsername().equals(username)
+                        && user.getRole().name().equals(role)) {
                     // Set company context for multi-tenancy
-                    CompanyContext.setCurrentCompany(company);
+                    CompanyContext.setCurrentCompany(user.getCompany());
 
                     // Create authentication token
                     UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                            userId,
+                            new AuthenticatedUser(
+                                    user.getId(),
+                                    user.getUsername(),
+                                    user.getCompany().getId(),
+                                    user.getRole()
+                            ),
                             null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role))
+                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name()))
                     );
                     authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 

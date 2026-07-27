@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -18,4 +19,14 @@ public interface ReferralRepository extends JpaRepository<Referral, Long> {
     Optional<Referral> findByReferralCodeAndCompanyId(String referralCode, Long companyId);
 
     boolean existsByReferralCode(String referralCode);
+
+    long countByAmbassadorUserIdAndCompanyId(Long ambassadorUserId, Long companyId);
+
+    long countByAmbassadorUserIdAndCompanyIdAndStatusIn(
+            Long ambassadorUserId,
+            Long companyId,
+            Collection<ReferralStatus> statuses
+    );
+
+    long countByAmbassadorUserIdAndCompanyIdAndStatus(Long ambassadorUserId, Long companyId, ReferralStatus status);
 }

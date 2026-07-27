@@ -2,6 +2,7 @@ package com.actpro.referral.company;
 
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
 import com.actpro.referral.company.dto.RegisterCompanyResponse;
@@ -96,7 +97,8 @@ public class CompanyService {
         adminUser.setCompany(company);
         adminUser.setUsername(request.adminWorkEmail());
         adminUser.setPassword(passwordEncoder.encode(request.password()));
-        adminUser.setRole(request.adminRole());
+        adminUser.setRole(UserRole.fromValue(request.adminRole()));
+        adminUser.setFirstName(request.adminFullName());
         
         dashboardUserRepository.save(adminUser);
         log.info("Admin user created for company: {}", company.getId());

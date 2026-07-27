@@ -36,6 +36,11 @@ export class DashboardLayoutComponent implements OnInit {
       description: 'Campaign overview and drill-down'
     },
     {
+      label: 'Ambassadors',
+      route: '/dashboard/ambassadors',
+      description: 'Manage ambassador accounts'
+    },
+    {
       label: 'Analytics',
       description: 'Deep analytics routes in phase 7',
       disabled: true
@@ -101,6 +106,21 @@ export class DashboardLayoutComponent implements OnInit {
   }
 
   private syncPageTitle(url: string): void {
+    if (url.includes('/dashboard/ambassadors/new')) {
+      this.currentPageTitle = 'New ambassador';
+      return;
+    }
+
+    if (url.includes('/dashboard/ambassadors/') && url.includes('/edit')) {
+      this.currentPageTitle = 'Edit ambassador';
+      return;
+    }
+
+    if (url.includes('/dashboard/ambassadors/')) {
+      this.currentPageTitle = 'Ambassador detail';
+      return;
+    }
+
     if (url.includes('/dashboard/campaigns/')) {
       this.currentPageTitle = 'Campaign detail';
       return;

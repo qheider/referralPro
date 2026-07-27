@@ -22,6 +22,10 @@ public class AuthService {
         DashboardUser user = dashboardUserRepository.findByUsernameWithCompany(request.getUsername())
                 .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
 
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new UnauthorizedException("User account is not active");
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new UnauthorizedException("Invalid username or password");
         }
@@ -30,8 +34,10 @@ public class AuthService {
                 user.getId(),
                 user.getUsername(),
                 user.getCompany().getId(),
-                user.getRole()
+                user.getRole().name()
         );
+
+        user.setLastLoginAt(java.time.LocalDateTime.now());
 
         return new LoginResponse(
                 token,
@@ -39,7 +45,7 @@ public class AuthService {
                 user.getUsername(),
                 user.getCompany().getId(),
                 user.getCompany().getName(),
-                user.getRole()
+                user.getRole().name()
         );
     }
 
@@ -53,7 +59,7 @@ public class AuthService {
                 user.getUsername(),
                 user.getCompany().getId(),
                 user.getCompany().getName(),
-                user.getRole()
+                user.getRole().name()
         );
     }
 
