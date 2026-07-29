@@ -50,6 +50,17 @@ public class CurrentUserService {
                 .orElseThrow(() -> new UnauthorizedException("Ambassador profile not found"));
     }
 
+    @Transactional(readOnly = true)
+    public AmbassadorProfile getCurrentAmbassadorProfile() {
+        if (getCurrentUserRole() != UserRole.AMBASSADOR) {
+            throw new AccessDeniedException("Current user is not an ambassador");
+        }
+
+        return ambassadorProfileRepository
+                .findDetailedByCompanyIdAndUserId(getCurrentCompanyId(), getCurrentUserId())
+                .orElseThrow(() -> new UnauthorizedException("Ambassador profile not found"));
+    }
+
     public void assertCurrentCompanyAccess(Long requestedCompanyId) {
         if (!getCurrentCompanyId().equals(requestedCompanyId)) {
             throw new AccessDeniedException("Cannot access another company's data");

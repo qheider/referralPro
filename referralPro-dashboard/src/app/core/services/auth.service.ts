@@ -194,6 +194,18 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  hasRole(role: string): boolean {
+    return this.getCurrentUserValue()?.role === role;
+  }
+
+  getDefaultRoute(): string {
+    return this.getDefaultRouteForRole(this.getCurrentUserValue()?.role);
+  }
+
+  getDefaultRouteForRole(role?: string | null): string {
+    return role === 'AMBASSADOR' ? '/ambassador' : '/dashboard';
+  }
+
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
     if (!response.success || response.data === undefined) {
       throw new Error(response.message || fallbackMessage);

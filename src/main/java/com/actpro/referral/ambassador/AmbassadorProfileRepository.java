@@ -65,5 +65,15 @@ public interface AmbassadorProfileRepository extends JpaRepository<AmbassadorPro
 
     Optional<AmbassadorProfile> findByCompanyIdAndUserId(Long companyId, Long userId);
 
+    @Query("""
+            SELECT ap
+            FROM AmbassadorProfile ap
+            JOIN FETCH ap.user u
+            JOIN FETCH ap.company c
+            WHERE ap.company.id = :companyId
+              AND ap.user.id = :userId
+            """)
+    Optional<AmbassadorProfile> findDetailedByCompanyIdAndUserId(@Param("companyId") Long companyId, @Param("userId") Long userId);
+
     boolean existsByAmbassadorCode(String ambassadorCode);
 }
