@@ -2,7 +2,7 @@ package com.actpro.referral.security;
 
 import com.actpro.referral.common.ErrorResponse;
 import com.actpro.referral.company.Company;
-import com.actpro.referral.company.CompanyRepository;
+import com.actpro.referral.company.CompanyApiKeyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
-    private final CompanyRepository companyRepository;
+    private final CompanyApiKeyService companyApiKeyService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -52,9 +52,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
         // Skip if already authenticated (JWT filter may have already authenticated)
-        if (SecurityContextHolder.getContext().getAuthentication() != null && 
+        if (SecurityContextHolder.getContext().getAuthentication() != null &&
             SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
             log.debug("Already authenticated, skipping API key authentication");
             filterChain.doFilter(request, response);
@@ -64,18 +64,17 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // Extract API key from Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("ApiKey ")) {
-            log.warn("cl header for path: {}", path);
+            log.warn("Missing or malformed Authorization header for path: {}", path);
             sendUnauthorizedResponse(response, "Missing or invalid API key");
             return;
         }
 
         String apiKey = authHeader.substring(7); // Remove "ApiKey " prefix
-        log.debug("Extracted API key: {}...", apiKey.substring(0, Math.min(10, apiKey.length())));
 
-        // Find company by API key
-        Optional<Company> companyOpt = companyRepository.findByApiKey(apiKey);
+        // Resolve company from the key's hash - never log the raw key itself
+        Optional<Company> companyOpt = companyApiKeyService.resolveActiveCompany(apiKey);
         if (companyOpt.isEmpty()) {
-            log.warn("Invalid API key: {}", apiKey);
+            log.warn("Invalid or inactive API key presented for path: {}", path);
             sendUnauthorizedResponse(response, "Invalid API key");
             return;
         }
@@ -90,12 +89,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         PreAuthenticatedAuthenticationToken authentication =
                 new PreAuthenticatedAuthenticationToken(
                         company.getId(),
-                        apiKey,
+                        null,
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_COMPANY"))
                 );
         authentication.setAuthenticated(true);
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        log.debug("Set authentication in SecurityContext: {}", authentication);
+        log.debug("Set authentication in SecurityContext for company id: {}", company.getId());
 
         try {
             filterChain.doFilter(request, response);
@@ -118,7 +117,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
     private boolean isJwtProtectedEndpoint(String path) {
         return path.startsWith("/api/dashboard/") ||
-                path.startsWith("/api/auth/me");
+                path.startsWith("/api/auth/me") ||
+                path.startsWith("/api/admin/");
     }
 
     private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

@@ -4,6 +4,7 @@ import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.common.exception.BadRequestException;
+import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
 import com.actpro.referral.company.dto.RegisterCompanyResponse;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -22,6 +21,7 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final DashboardUserRepository dashboardUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CompanyApiKeyService companyApiKeyService;
 
     @Transactional
     public RegisterCompanyResponse registerCompany(RegisterCompanyRequest request) {
@@ -54,8 +54,7 @@ public class CompanyService {
         company.setCompanySize(request.companySize());
         company.setPreferredCurrency(request.preferredCurrency());
         company.setStatus(CompanyStatus.ACTIVE);
-        company.setApiKey(generateApiKey());
-        
+
         // Optional company fields
         company.setTaxId(request.taxId());
         company.setCompanyLogoUrl(request.companyLogoUrl());
@@ -92,6 +91,8 @@ public class CompanyService {
         company = companyRepository.save(company);
         log.info("Company registered successfully with ID: {}", company.getId());
 
+        IssuedApiKeyResponse apiKey = companyApiKeyService.issueInitialKey(company);
+
         // Create admin dashboard user
         DashboardUser adminUser = new DashboardUser();
         adminUser.setCompany(company);
@@ -106,13 +107,8 @@ public class CompanyService {
         return new RegisterCompanyResponse(
                 company.getId(),
                 company.getName(),
-                company.getApiKey(),
+                apiKey.apiKey(),
                 request.adminWorkEmail()
         );
-    }
-
-    private String generateApiKey() {
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        return "cmp_live_" + uuid;
     }
 }

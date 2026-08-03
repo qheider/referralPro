@@ -1,5 +1,6 @@
 package com.actpro.referral.referral;
 
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,20 @@ import java.util.Optional;
 public interface ReferralLinkRepository extends JpaRepository<ReferralLink, Long> {
 
     Optional<ReferralLink> findByPublicToken(String publicToken);
+
+    @Query("""
+            SELECT rl
+            FROM ReferralLink rl
+            JOIN FETCH rl.campaign c
+            JOIN FETCH rl.company co
+            JOIN FETCH rl.ambassadorUser au
+            WHERE rl.publicToken = :publicToken
+            """)
+    Optional<ReferralLink> findDetailedByPublicToken(@Param("publicToken") String publicToken);
+
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE ReferralLink rl SET rl.clickCount = rl.clickCount + 1 WHERE rl.id = :id")
+    void incrementClickCount(@Param("id") Long id);
 
     Optional<ReferralLink> findByIdAndCompanyId(Long id, Long companyId);
 

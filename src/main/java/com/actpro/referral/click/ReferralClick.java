@@ -24,7 +24,7 @@ public class ReferralClick {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "referral_id", nullable = false)
+    @JoinColumn(name = "referral_id")
     private Referral referral;
 
     @ManyToOne(fetch = FetchType.LAZY)
