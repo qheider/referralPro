@@ -1,6 +1,7 @@
 package com.actpro.referral.ambassador;
 
 import com.actpro.referral.ambassador.dto.*;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,12 +19,18 @@ public class AmbassadorAdminController {
     private final AmbassadorAdminService ambassadorAdminService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<AmbassadorSummaryResponse>> createAmbassador(
+    public ResponseEntity<ApiResponse<AmbassadorCreationResponse>> createAmbassador(
             @Valid @RequestBody CreateAmbassadorRequest request
     ) {
-        AmbassadorSummaryResponse response = ambassadorAdminService.createAmbassador(request);
+        AmbassadorCreationResponse response = ambassadorAdminService.createAmbassador(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Ambassador created successfully", response));
+    }
+
+    @PostMapping("/{ambassadorId}/resend-invitation")
+    public ResponseEntity<ApiResponse<IssuedInvitationResponse>> resendInvitation(@PathVariable Long ambassadorId) {
+        IssuedInvitationResponse response = ambassadorAdminService.resendInvitation(ambassadorId);
+        return ResponseEntity.ok(ApiResponse.success("Invitation resent successfully", response));
     }
 
     @GetMapping

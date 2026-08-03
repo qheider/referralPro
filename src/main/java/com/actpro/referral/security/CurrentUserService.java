@@ -39,6 +39,16 @@ public class CurrentUserService {
         return requireAuthenticatedUser().role();
     }
 
+    public CurrentActor getCurrentActor() {
+        AuthenticatedUser authenticatedUser = requireAuthenticatedUser();
+        return new CurrentActor(
+                authenticatedUser.userId(),
+                authenticatedUser.username(),
+                authenticatedUser.companyId(),
+                authenticatedUser.role()
+        );
+    }
+
     @Transactional(readOnly = true)
     public Long getCurrentAmbassadorId() {
         if (getCurrentUserRole() != UserRole.AMBASSADOR) {

@@ -1,0 +1,28 @@
+ReferralPro
+
+Completed
+ 1. Current-State Assessment (read-only, docs only) — write docs/luup/CURRENT_STATE_ASSESSMENT.md.
+ 2. Foundation Fix: Referral-Link & Click-Attribution Correctness — route /r/{token} through ReferralLink.publicToken, decouple click recording from requiring an existing Referral, populate the currently-unset ReferralClick attribution fields.
+ 3. Foundation Fix: API-Key Security — replace plaintext Company.apiKey with a hashed, scoped, rotatable CompanyApiKey lifecycle.
+ 4. Foundation Fix: Ambassador Invitation Flow — replace the undeliverable temp-password creation with a one-time invitation-token flow (AccountInvitation). Test coverage added for AccountInvitationService, AmbassadorAdminService.resendInvitation/activateInvitedAmbassador, and the ApiKeyAuthenticationFilter public-path exemption.
+ 5. Tenant Authorization Foundation:
+    - tenant-security-reviewer audit of the full backend (findById-without-company-check gaps, CompanyContext misuse, @PreAuthorize/audience mismatches, cross-tenant relationship traversal).
+    - Fixed confirmed gap: ConversionController/ReferralController/RewardController had no @PreAuthorize, letting any JWT-authenticated dashboard role (incl. AMBASSADOR) hit the API-key-only integration endpoints — added @PreAuthorize("hasRole('COMPANY')") to all three + security tests (ReferralControllerSecurityTest, ConversionControllerSecurityTest, RewardControllerSecurityTest).
+    - Migrated DashboardService off CompanyContext onto CurrentUserService (was the last ambassador-era/JWT service still using the legacy ThreadLocal).
+    - Removed unused unscoped repository sibling methods that were dead-code footguns: CampaignAmbassadorAssignmentRepository.findByCampaignIdAndAmbassadorUserId/findByCampaignIdAndStatus/findByAmbassadorUserIdAndStatus, ReferralLinkRepository.findByCampaignIdAndAmbassadorUserId(2-arg), ReferralRepository.findByReferralCode(String), DashboardUserRepository.findByIdAndCompanyId/findByUsernameAndCompanyId. (ReferralLinkRepository.findByPublicToken kept — it's exercised directly by ReferralLinkRepositoryTest.)
+    - Reconciled CampaignController's hasRole('COMPANY_ADMIN') vs. its /api/companies/** path: corrected the misleading SecurityConfig comment and CLAUDE.md's ApiKeyAuthenticationFilter description — /api/companies/register is public, everything else under that prefix (CampaignController) is JWT/COMPANY_ADMIN-only via CurrentUserService and was never reachable via API key (CurrentUserService requires an AuthenticatedUser principal the API-key filter never sets), so this was a documentation mismatch, not a behavior bug.
+    - Formalized CurrentActor (security/CurrentActor.java: userId, username, companyId, role) + CurrentUserService.getCurrentActor(), a single-shot principal snapshot on top of the existing per-field getters — groundwork for phase 6's outbox actor-stamping and phase 15's audit trail, not a forced repo-wide refactor of existing call sites.
+
+remain:
+ 6. Transactional Outbox Infrastructure — outbox_events table, publisher, claim-safe scheduled dispatch worker, retry/dead-letter handling. (No business capability uses it yet — this phase is pure plumbing.)
+ 7. Ambassador Applications — public apply endpoint + admin review/approve/reject, wired to the invitation flow (phase 4) and outbox (phase 6).
+ 8. Public Referred-Customer Journey — public link resolution + lead submission, attribution-session linkage, duplicate/idempotency protection.
+ 9. Referral Workflow — explicit verify / activate / reject state machine replacing today's single status field.
+ 10. Reward Rules & Immutable Ledger — data-driven RewardRule/RewardLedgerEntry, idempotent evaluation on REFERRAL_ACTIVATED.
+ 11. Ambassador Tiers & Leaderboard — tier definitions, performance projections, ranked leaderboard, reconciliation job.
+ 12. Payout Requests & Administration — ambassador-initiated payout requests, ledger reservation, admin approve/reject/mark-paid.
+ 13. Email Queue & Delivery Worker — EmailTemplate/EmailMessage consuming outbox events, suppression-aware, pluggable provider.
+ 14. Consent & Unsubscribe/Suppression — append-only consent history, public unsubscribe, suppression enforcement.
+ 15. Audit Events & Admin Annotations/Tags — tenant-scoped audit trail plus internal notes/tags on applications/ambassadors/referrals/payouts.
+ 16. Campaign Lifecycle Scheduling — explicit campaign state machine + scheduled activation/completion workers.
+ 17. End-to-End Acceptance Test & Hardening — automate the full cross-company/cross-ambassador acceptance journey from the source document (Part XVIII), close remaining gaps.

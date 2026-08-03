@@ -1,10 +1,13 @@
 package com.actpro.referral.ambassador;
 
 import com.actpro.referral.ambassador.dto.*;
+import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.UserStatus;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
@@ -36,7 +39,9 @@ import java.util.Locale;
 public class AmbassadorAdminService {
 
     private static final String TOKEN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-    private static final String PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+    // Never presented to anyone - DashboardUser.password can't be null, but a real credential is
+    // only ever set via AccountInvitationService.acceptInvitation. This is just filler.
+    private static final String PLACEHOLDER_PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final AmbassadorProfileRepository ambassadorProfileRepository;
@@ -47,9 +52,10 @@ public class AmbassadorAdminService {
     private final ReferralLinkRepository referralLinkRepository;
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserService currentUserService;
+    private final AccountInvitationService accountInvitationService;
 
     @Transactional
-    public AmbassadorSummaryResponse createAmbassador(CreateAmbassadorRequest request) {
+    public AmbassadorCreationResponse createAmbassador(CreateAmbassadorRequest request) {
         Company company = getCurrentCompany();
 
         if (company.getStatus() != CompanyStatus.ACTIVE) {
@@ -63,7 +69,7 @@ public class AmbassadorAdminService {
         DashboardUser user = new DashboardUser();
         user.setCompany(company);
         user.setUsername(request.email().trim().toLowerCase(Locale.ROOT));
-        user.setPassword(passwordEncoder.encode(generateTemporaryPassword()));
+        user.setPassword(passwordEncoder.encode(generatePlaceholderPassword()));
         user.setFirstName(request.firstName().trim());
         user.setLastName(request.lastName().trim());
         user.setRole(UserRole.AMBASSADOR);
@@ -81,7 +87,33 @@ public class AmbassadorAdminService {
         profile.setStatus(AmbassadorStatus.INVITED);
         profile = ambassadorProfileRepository.save(profile);
 
-        return toSummary(profile);
+        IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(user, InvitationPurpose.AMBASSADOR_ONBOARDING);
+
+        return new AmbassadorCreationResponse(toSummary(profile), invitation.token(), invitation.expiresAt());
+    }
+
+    @Transactional
+    public IssuedInvitationResponse resendInvitation(Long ambassadorId) {
+        AmbassadorProfile profile = findProfileOrThrow(ambassadorId);
+
+        if (profile.getStatus() == AmbassadorStatus.ACTIVE) {
+            throw new BadRequestException("Ambassador has already accepted an invitation");
+        }
+
+        return accountInvitationService.issueInvitation(profile.getUser(), InvitationPurpose.AMBASSADOR_ONBOARDING);
+    }
+
+    /**
+     * Called after a successful invitation acceptance (see AccountInvitationController) to flip
+     * the AmbassadorProfile live. Deliberately not company-scoped: the caller has already
+     * validated the invitation token and resolved a trustworthy user id from it, so there is no
+     * client-supplied company id to check here.
+     */
+    @Transactional
+    public void activateInvitedAmbassador(Long userId) {
+        AmbassadorProfile profile = ambassadorProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("Ambassador not found"));
+        applyStatus(profile, AmbassadorStatus.ACTIVE);
     }
 
     @Transactional(readOnly = true)
@@ -329,8 +361,8 @@ public class AmbassadorAdminService {
         return Sort.by(direction, property);
     }
 
-    private String generateTemporaryPassword() {
-        return randomString(PASSWORD_ALPHABET, 24);
+    private String generatePlaceholderPassword() {
+        return randomString(PLACEHOLDER_PASSWORD_ALPHABET, 24);
     }
 
     private String generateAmbassadorCode() {

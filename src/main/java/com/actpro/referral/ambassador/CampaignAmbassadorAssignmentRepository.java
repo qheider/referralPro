@@ -11,8 +11,6 @@ import java.util.Optional;
 @Repository
 public interface CampaignAmbassadorAssignmentRepository extends JpaRepository<CampaignAmbassadorAssignment, Long> {
 
-    Optional<CampaignAmbassadorAssignment> findByCampaignIdAndAmbassadorUserId(Long campaignId, Long ambassadorUserId);
-
     Optional<CampaignAmbassadorAssignment> findByCampaignIdAndAmbassadorUserIdAndCompanyId(
             Long campaignId,
             Long ambassadorUserId,
@@ -28,11 +26,7 @@ public interface CampaignAmbassadorAssignmentRepository extends JpaRepository<Ca
 
     Optional<CampaignAmbassadorAssignment> findByIdAndCompanyId(Long id, Long companyId);
 
-    List<CampaignAmbassadorAssignment> findByCampaignIdAndStatus(Long campaignId, AssignmentStatus status);
-
     List<CampaignAmbassadorAssignment> findByCampaignIdAndCompanyIdAndStatus(Long campaignId, Long companyId, AssignmentStatus status);
-
-    List<CampaignAmbassadorAssignment> findByAmbassadorUserIdAndStatus(Long ambassadorUserId, AssignmentStatus status);
 
     List<CampaignAmbassadorAssignment> findByAmbassadorUserIdAndCompanyIdAndStatus(Long ambassadorUserId, Long companyId, AssignmentStatus status);
 

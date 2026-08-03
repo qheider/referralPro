@@ -39,16 +39,21 @@ public class SecurityConfig {
                         .requestMatchers("/api/companies/register").permitAll()
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/hash").permitAll()
+                        .requestMatchers("/api/auth/accept-invitation").permitAll()
                         .requestMatchers("/r/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         // Dashboard endpoints - require JWT authentication
                         .requestMatchers("/api/dashboard/**").authenticated()
                         .requestMatchers("/api/auth/me").authenticated()
-                        // Protected endpoints - require API key
+                        // Integration endpoints - require API key (ROLE_COMPANY); enforced by
+                        // @PreAuthorize on each controller, not narrowed here
                         .requestMatchers("/api/referrals/**").authenticated()
                         .requestMatchers("/api/conversions/**").authenticated()
                         .requestMatchers("/api/rewards/**").authenticated()
+                        // /api/companies/register is public (see above); every other path under
+                        // /api/companies/** (e.g. CampaignController) is a JWT/COMPANY_ADMIN
+                        // dashboard flow via CurrentUserService, not part of the API-key surface
                         .requestMatchers("/api/companies/**").authenticated()
                         // All other requests require authentication
                         .anyRequest().authenticated()

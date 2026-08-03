@@ -1,12 +1,17 @@
 package com.actpro.referral.ambassador;
 
+import com.actpro.referral.ambassador.dto.AmbassadorCreationResponse;
 import com.actpro.referral.ambassador.dto.AmbassadorDetailResponse;
-import com.actpro.referral.ambassador.dto.AmbassadorSummaryResponse;
 import com.actpro.referral.ambassador.dto.CreateAmbassadorRequest;
+import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.UserStatus;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.common.exception.BadRequestException;
+import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.company.CompanyRepository;
 import com.actpro.referral.company.CompanyStatus;
@@ -24,12 +29,17 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -60,6 +70,9 @@ class AmbassadorAdminServiceTest {
     @Mock
     private CurrentUserService currentUserService;
 
+    @Mock
+    private AccountInvitationService accountInvitationService;
+
     @InjectMocks
     private AmbassadorAdminService ambassadorAdminService;
 
@@ -72,10 +85,10 @@ class AmbassadorAdminServiceTest {
         company.setName("Acme Rentals");
         company.setStatus(CompanyStatus.ACTIVE);
 
-        when(currentUserService.getCurrentCompanyId()).thenReturn(10L);
-        when(assignmentRepository.countByAmbassadorUserIdAndCompanyIdAndStatus(any(), any(), any())).thenReturn(0L);
-        when(referralRepository.countByAmbassadorUserIdAndCompanyIdAndStatusIn(any(), any(), any())).thenReturn(0L);
-        when(referralRepository.countByAmbassadorUserIdAndCompanyIdAndStatus(any(), any(), any())).thenReturn(0L);
+        lenient().when(currentUserService.getCurrentCompanyId()).thenReturn(10L);
+        lenient().when(assignmentRepository.countByAmbassadorUserIdAndCompanyIdAndStatus(any(), any(), any())).thenReturn(0L);
+        lenient().when(referralRepository.countByAmbassadorUserIdAndCompanyIdAndStatusIn(any(), any(), any())).thenReturn(0L);
+        lenient().when(referralRepository.countByAmbassadorUserIdAndCompanyIdAndStatus(any(), any(), any())).thenReturn(0L);
     }
 
     @Test
@@ -94,8 +107,10 @@ class AmbassadorAdminServiceTest {
             profile.setId(31L);
             return profile;
         });
+        when(accountInvitationService.issueInvitation(any(DashboardUser.class), eq(InvitationPurpose.AMBASSADOR_ONBOARDING)))
+                .thenReturn(new IssuedInvitationResponse(100L, "raw-invitation-token", LocalDateTime.now().plusDays(7)));
 
-        AmbassadorSummaryResponse response = ambassadorAdminService.createAmbassador(
+        AmbassadorCreationResponse response = ambassadorAdminService.createAmbassador(
                 new CreateAmbassadorRequest(
                         "Sarah",
                         "Ahmed",
@@ -116,9 +131,78 @@ class AmbassadorAdminServiceTest {
         assertEquals("encoded-password", savedUser.getPassword());
         assertEquals("sarah@example.com", savedUser.getUsername());
 
-        assertEquals(31L, response.id());
-        assertEquals("Sarah", response.firstName());
-        assertEquals(AmbassadorStatus.INVITED, response.status());
+        assertEquals(31L, response.ambassador().id());
+        assertEquals("Sarah", response.ambassador().firstName());
+        assertEquals(AmbassadorStatus.INVITED, response.ambassador().status());
+        assertEquals("raw-invitation-token", response.invitationToken());
+    }
+
+    @Test
+    void shouldResendInvitationForOutstandingAmbassador() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.INVITED);
+
+        when(ambassadorProfileRepository.findDetailedByIdAndCompanyId(31L, 10L)).thenReturn(Optional.of(profile));
+        when(accountInvitationService.issueInvitation(user, InvitationPurpose.AMBASSADOR_ONBOARDING))
+                .thenReturn(new IssuedInvitationResponse(101L, "resent-token", LocalDateTime.now().plusDays(7)));
+
+        IssuedInvitationResponse response = ambassadorAdminService.resendInvitation(31L);
+
+        assertEquals("resent-token", response.token());
+    }
+
+    @Test
+    void shouldRejectResendingInvitationForAlreadyActiveAmbassador() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.ACTIVE);
+
+        when(ambassadorProfileRepository.findDetailedByIdAndCompanyId(31L, 10L)).thenReturn(Optional.of(profile));
+
+        assertThrows(BadRequestException.class, () -> ambassadorAdminService.resendInvitation(31L));
+        verify(accountInvitationService, never()).issueInvitation(any(), any());
+    }
+
+    @Test
+    void shouldActivateInvitedAmbassadorAfterInvitationAccepted() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+        user.setStatus(UserStatus.PENDING);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.INVITED);
+
+        when(ambassadorProfileRepository.findByUserId(21L)).thenReturn(Optional.of(profile));
+        when(referralLinkRepository.findByAmbassadorUserIdAndCompanyIdAndStatus(21L, 10L, ReferralLinkStatus.DISABLED))
+                .thenReturn(List.of());
+
+        ambassadorAdminService.activateInvitedAmbassador(21L);
+
+        assertEquals(AmbassadorStatus.ACTIVE, profile.getStatus());
+    }
+
+    @Test
+    void shouldRejectActivatingUnknownUser() {
+        when(ambassadorProfileRepository.findByUserId(99L)).thenReturn(Optional.empty());
+
+        assertThrows(NotFoundException.class, () -> ambassadorAdminService.activateInvitedAmbassador(99L));
     }
 
     @Test

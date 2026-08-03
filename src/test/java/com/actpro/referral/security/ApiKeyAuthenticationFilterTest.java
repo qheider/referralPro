@@ -109,4 +109,16 @@ class ApiKeyAuthenticationFilterTest {
         verify(chain).doFilter(request, response);
         verifyNoInteractions(companyApiKeyService);
     }
+
+    @Test
+    void shouldSkipAuthenticationForAcceptInvitationEndpoint() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/api/auth/accept-invitation");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilterInternal(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        verifyNoInteractions(companyApiKeyService);
+    }
 }

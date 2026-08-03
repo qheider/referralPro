@@ -109,6 +109,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/api/companies/register") ||
                 path.startsWith("/api/auth/login") ||
                 path.startsWith("/api/auth/hash") ||
+                path.startsWith("/api/auth/accept-invitation") ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||

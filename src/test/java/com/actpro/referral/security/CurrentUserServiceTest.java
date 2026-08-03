@@ -72,6 +72,26 @@ class CurrentUserServiceTest {
         assertThrows(AccessDeniedException.class, () -> currentUserService.assertCurrentCompanyAccess(12L));
     }
 
+    @Test
+    void shouldReturnCurrentActorSnapshotMatchingAuthenticatedPrincipal() {
+        setAuthenticatedUser(UserRole.AMBASSADOR);
+
+        CurrentActor actor = currentUserService.getCurrentActor();
+
+        assertEquals(7L, actor.userId());
+        assertEquals("user@example.com", actor.username());
+        assertEquals(11L, actor.companyId());
+        assertEquals(UserRole.AMBASSADOR, actor.role());
+        assertEquals(true, actor.hasRole(UserRole.AMBASSADOR));
+        assertEquals(false, actor.hasRole(UserRole.COMPANY_ADMIN));
+    }
+
+    @Test
+    void shouldRejectCurrentActorWhenUnauthenticated() {
+        assertThrows(com.actpro.referral.common.exception.UnauthorizedException.class,
+                () -> currentUserService.getCurrentActor());
+    }
+
     private void setAuthenticatedUser(UserRole role) {
         AuthenticatedUser principal = new AuthenticatedUser(7L, "user@example.com", 11L, role);
         UsernamePasswordAuthenticationToken authentication =

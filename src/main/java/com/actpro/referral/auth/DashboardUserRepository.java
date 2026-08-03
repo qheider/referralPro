@@ -17,9 +17,5 @@ public interface DashboardUserRepository extends JpaRepository<DashboardUser, Lo
 
     Optional<DashboardUser> findByUsername(String username);
 
-    Optional<DashboardUser> findByIdAndCompanyId(Long id, Long companyId);
-
-    Optional<DashboardUser> findByUsernameAndCompanyId(String username, Long companyId);
-
     boolean existsByUsername(String username);
 }

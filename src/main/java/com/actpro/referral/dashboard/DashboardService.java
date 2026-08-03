@@ -5,7 +5,7 @@ import com.actpro.referral.campaign.CampaignRepository;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.dashboard.dto.*;
-import com.actpro.referral.security.CompanyContext;
+import com.actpro.referral.security.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
@@ -28,15 +28,12 @@ public class DashboardService {
 
     private final CampaignRepository campaignRepository;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     @Transactional(readOnly = true)
     public CampaignsOverviewResponse getCampaignsOverview() {
-        Company company = CompanyContext.getCurrentCompany();
-        
-        if (company == null) {
-            throw new IllegalStateException("Company context not set - authentication may have failed");
-        }
-        
+        Company company = currentUserService.getCurrentUser().getCompany();
+
         log.debug("Loading campaigns overview for company: {} (ID: {})", company.getName(), company.getId());
 
         // Get all campaigns for the company
@@ -97,8 +94,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public CampaignStatsResponse getCampaignStats(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         // totalClicks is a scalar subquery on referral_clicks.campaign_id (not a join through
@@ -121,7 +118,7 @@ public class DashboardService {
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
 
         Object[] result = (Object[]) query.getSingleResult();
 
@@ -162,8 +159,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public ConversionFunnelResponse getConversionFunnel(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         String sql = """
@@ -179,7 +176,7 @@ public class DashboardService {
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
 
         Object[] result = (Object[]) query.getSingleResult();
 
@@ -213,8 +210,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public TopReferrersResponse getTopReferrers(Long campaignId, Integer limit) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         if (limit == null || limit <= 0) {
@@ -266,7 +263,7 @@ public class DashboardService {
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
         query.setParameter("limit", limit);
 
         @SuppressWarnings("unchecked")
@@ -293,8 +290,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public TimeSeriesResponse getTimeSeries(Long campaignId, LocalDate startDate, LocalDate endDate, String granularity) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         // Default to last 30 days if not specified
@@ -421,8 +418,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public RewardSummaryResponse getRewardSummary(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         // Get overall stats
@@ -438,7 +435,7 @@ public class DashboardService {
 
         Query statsQuery = entityManager.createNativeQuery(statsSql);
         statsQuery.setParameter("campaignId", campaignId);
-        statsQuery.setParameter("companyId", company.getId());
+        statsQuery.setParameter("companyId", companyId);
 
         Object[] statsResult = (Object[]) statsQuery.getSingleResult();
 
@@ -464,7 +461,7 @@ public class DashboardService {
 
         Query breakdownQuery = entityManager.createNativeQuery(breakdownSql);
         breakdownQuery.setParameter("campaignId", campaignId);
-        breakdownQuery.setParameter("companyId", company.getId());
+        breakdownQuery.setParameter("companyId", companyId);
 
         @SuppressWarnings("unchecked")
         List<Object[]> breakdownResults = breakdownQuery.getResultList();
