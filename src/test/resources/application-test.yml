@@ -18,6 +18,8 @@ app:
   jwt:
     secret: test-secret-key-for-testing-purposes-only-256-bits
     expiration-minutes: 60
+  outbox:
+    dispatch-enabled: false
 
 logging:
   level:
