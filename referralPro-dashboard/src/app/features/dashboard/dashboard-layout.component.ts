@@ -52,8 +52,8 @@ export class DashboardLayoutComponent implements OnInit {
     },
     {
       label: 'Rewards',
-      description: 'Reward reporting in phase 7',
-      disabled: true
+      route: '/dashboard/rewards',
+      description: 'Ambassador reward monitoring and payout lifecycle'
     }
   ];
 
@@ -128,6 +128,11 @@ export class DashboardLayoutComponent implements OnInit {
 
     if (url.includes('/dashboard/campaigns/new')) {
       this.currentPageTitle = 'New campaign';
+      return;
+    }
+
+    if (url.includes('/revenue-report')) {
+      this.currentPageTitle = 'Campaign revenue report';
       return;
     }
 

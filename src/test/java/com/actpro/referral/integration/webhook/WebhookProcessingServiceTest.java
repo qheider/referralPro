@@ -5,6 +5,8 @@ import com.actpro.referral.company.CompanyIntegration;
 import com.actpro.referral.company.CompanyIntegrationRepository;
 import com.actpro.referral.integration.ApiSubmission;
 import com.actpro.referral.integration.ApiSubmissionRepository;
+import com.actpro.referral.integration.webhook.dto.ReferralStatusChangedEventPayload;
+import com.actpro.referral.outbox.OutboxEventPublisher;
 import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.referral.ReferralStatus;
@@ -47,6 +49,9 @@ class WebhookProcessingServiceTest {
     @Mock
     private ReferralStatusMappingService referralStatusMappingService;
 
+    @Mock
+    private OutboxEventPublisher outboxEventPublisher;
+
     private WebhookProcessingService service;
 
     private Company company;
@@ -58,7 +63,7 @@ class WebhookProcessingServiceTest {
     void setUp() {
         service = new WebhookProcessingService(
                 webhookEventRepository, companyIntegrationRepository, apiSubmissionRepository,
-                referralRepository, referralStatusMappingService, new ObjectMapper());
+                referralRepository, referralStatusMappingService, outboxEventPublisher, new ObjectMapper());
 
         company = new Company();
         company.setId(9L);
@@ -119,6 +124,10 @@ class WebhookProcessingServiceTest {
         assertEquals(WebhookEventStatus.PROCESSED, event.getStatus());
         assertEquals(ReferralStatus.COMPLETED, referral.getStatus());
         verify(referralRepository).save(referral);
+
+        ArgumentCaptor<ReferralStatusChangedEventPayload> payloadCaptor = ArgumentCaptor.forClass(ReferralStatusChangedEventPayload.class);
+        verify(outboxEventPublisher).publish(eq(company), eq("REFERRAL"), eq(42L), eq("referral.status_changed"), payloadCaptor.capture());
+        assertEquals(42L, payloadCaptor.getValue().referralId());
     }
 
     @Test
@@ -149,6 +158,7 @@ class WebhookProcessingServiceTest {
         assertEquals(WebhookEventStatus.MANUAL_REVIEW, event.getStatus());
         assertTrue(event.getFailureReason().contains("No matching referral"));
         verify(referralRepository, never()).save(any());
+        verify(outboxEventPublisher, never()).publish(any(), any(), any(), any(), any());
     }
 
     @Test
@@ -181,6 +191,7 @@ class WebhookProcessingServiceTest {
         assertEquals(WebhookEventStatus.IGNORED, event.getStatus());
         assertEquals(ReferralStatus.RENTAL_STARTED, referral.getStatus());
         verify(referralRepository, never()).save(any());
+        verify(outboxEventPublisher, never()).publish(any(), any(), any(), any(), any());
     }
 
     @Test

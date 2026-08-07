@@ -73,6 +73,19 @@ public class AmbassadorPortalController {
         ));
     }
 
+    @GetMapping("/earnings")
+    public ResponseEntity<ApiResponse<AmbassadorEarningsSummaryResponse>> getEarningsSummary() {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Earnings summary retrieved successfully", ambassadorPortalService.getEarningsSummary()));
+    }
+
+    @GetMapping("/earnings/history")
+    public ResponseEntity<ApiResponse<AmbassadorEarningsHistoryResponse>> listEarnings(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Earnings history retrieved successfully", ambassadorPortalService.listEarnings(page, size)));
+    }
+
     @GetMapping("/profile")
     public ResponseEntity<ApiResponse<AmbassadorProfileResponse>> getProfile() {
         return ResponseEntity.ok(new ApiResponse<>(true, "Profile retrieved successfully", ambassadorPortalService.getProfile()));

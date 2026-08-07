@@ -142,6 +142,13 @@
       >
         Archive
       </button>
+      <a
+        *ngIf="campaignId"
+        [routerLink]="['/dashboard/campaigns', campaignId, 'revenue-report']"
+        class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+      >
+        Revenue report
+      </a>
     </div>
   </section>
 

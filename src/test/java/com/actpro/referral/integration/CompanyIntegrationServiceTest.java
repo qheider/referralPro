@@ -12,6 +12,7 @@ import com.actpro.referral.integration.dto.UpdateCompanyIntegrationConfigRequest
 import com.actpro.referral.integration.webhook.ReferralStatusMappingService;
 import com.actpro.referral.integration.webhook.WebhookEventRepository;
 import com.actpro.referral.integration.webhook.dto.GenerateWebhookSecretResponse;
+import com.actpro.referral.revenue.RewardStatusMappingService;
 import com.actpro.referral.security.CurrentUserService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
@@ -62,7 +63,7 @@ class CompanyIntegrationServiceTest {
         companyIntegrationService = new CompanyIntegrationService(
                 companyIntegrationRepository, apiSubmissionRepository, integrationAttemptRepository, webhookEventRepository,
                 new CredentialEncryptionService("test-key"), createUserApiClient, new ReferralStatusMappingService(new ObjectMapper()),
-                currentUserService, new ObjectMapper());
+                new RewardStatusMappingService(new ObjectMapper()), currentUserService, new ObjectMapper());
         ReflectionTestUtils.setField(companyIntegrationService, "baseUrl", "http://localhost:8080");
 
         Company company = new Company();

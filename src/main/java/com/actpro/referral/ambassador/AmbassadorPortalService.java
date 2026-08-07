@@ -11,6 +11,9 @@ import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralStatus;
 import com.actpro.referral.referral.ReferralRepository;
+import com.actpro.referral.revenue.AmbassadorReward;
+import com.actpro.referral.revenue.AmbassadorRewardRepository;
+import com.actpro.referral.revenue.AmbassadorRewardStatus;
 import com.actpro.referral.security.CurrentUserService;
 import com.actpro.referral.user.PlatformUser;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +63,7 @@ public class AmbassadorPortalService {
     private final ReferralLinkRepository referralLinkRepository;
     private final ReferralRepository referralRepository;
     private final ReferralClickRepository referralClickRepository;
+    private final AmbassadorRewardRepository ambassadorRewardRepository;
 
     @Value("${app.base-url:http://localhost:8080}")
     private String baseUrl;
@@ -382,6 +386,73 @@ public class AmbassadorPortalService {
         profile.setProfileImageUrl(trimToNull(request.profileImageUrl()));
 
         return toProfileResponse(profile);
+    }
+
+    /**
+     * Bounded per-ambassador aggregation in Java, not native SQL - same convention as
+     * {@link #getDashboard()}/{@link #getAnalytics}, which already load a bounded list and
+     * aggregate in-memory rather than reaching for {@code EntityManager} (that's reserved for
+     * cross-entity/cross-tenant reporting, e.g. {@code revenue.RevenueAdminService}'s campaign report).
+     */
+    @Transactional(readOnly = true)
+    public AmbassadorEarningsSummaryResponse getEarningsSummary() {
+        AmbassadorProfile profile = getCurrentProfile();
+        List<AmbassadorReward> rewards = ambassadorRewardRepository.findByAmbassadorUserIdAndCompanyId(
+                profile.getUser().getId(), profile.getCompany().getId());
+
+        BigDecimal totalPaid = sumByStatus(rewards, AmbassadorRewardStatus.PAID);
+        BigDecimal totalApproved = sumByStatus(rewards, AmbassadorRewardStatus.APPROVED);
+        BigDecimal totalPendingOrEligible = sumByStatuses(rewards, EnumSet.of(AmbassadorRewardStatus.PENDING, AmbassadorRewardStatus.ELIGIBLE));
+        BigDecimal totalRejectedOrReversed = sumByStatuses(rewards, EnumSet.of(AmbassadorRewardStatus.REJECTED, AmbassadorRewardStatus.REVERSED));
+        String currency = rewards.stream().map(AmbassadorReward::getCurrency).filter(Objects::nonNull).findFirst().orElse(null);
+
+        return new AmbassadorEarningsSummaryResponse(totalPaid, totalApproved, totalPendingOrEligible, totalRejectedOrReversed, rewards.size(), currency);
+    }
+
+    @Transactional(readOnly = true)
+    public AmbassadorEarningsHistoryResponse listEarnings(int page, int size) {
+        AmbassadorProfile profile = getCurrentProfile();
+        Page<AmbassadorReward> rewards = ambassadorRewardRepository.findByAmbassadorUserIdAndCompanyId(
+                profile.getUser().getId(),
+                profile.getCompany().getId(),
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+
+        return new AmbassadorEarningsHistoryResponse(
+                rewards.getContent().stream().map(this::toEarningResponse).toList(),
+                rewards.getNumber(),
+                rewards.getSize(),
+                rewards.getTotalElements(),
+                rewards.getTotalPages()
+        );
+    }
+
+    private BigDecimal sumByStatus(List<AmbassadorReward> rewards, AmbassadorRewardStatus status) {
+        return sumByStatuses(rewards, EnumSet.of(status));
+    }
+
+    private BigDecimal sumByStatuses(List<AmbassadorReward> rewards, Set<AmbassadorRewardStatus> statuses) {
+        return rewards.stream()
+                .filter(reward -> statuses.contains(reward.getStatus()))
+                .map(AmbassadorReward::getRewardValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private AmbassadorEarningResponse toEarningResponse(AmbassadorReward reward) {
+        return new AmbassadorEarningResponse(
+                reward.getId(),
+                reward.getCampaign().getId(),
+                reward.getCampaign().getName(),
+                reward.getReferral().getReferralCode(),
+                reward.getRewardType().name(),
+                reward.getRewardValue(),
+                reward.getCurrency(),
+                reward.getStatus(),
+                reward.getHoldReason(),
+                reward.getCreatedAt(),
+                reward.getApprovedAt(),
+                reward.getPaidAt()
+        );
     }
 
     private AmbassadorCampaignOverviewResponse toCampaignOverview(CampaignAmbassadorAssignment assignment, Long companyId) {

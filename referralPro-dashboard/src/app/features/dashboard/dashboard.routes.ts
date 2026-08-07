@@ -6,6 +6,7 @@ import { AmbassadorFormComponent } from './ambassador-form.component';
 import { AmbassadorsComponent } from './ambassadors.component';
 import { CampaignDetailComponent } from './campaign-detail.component';
 import { CampaignFormComponent } from './campaign-form.component';
+import { CampaignRevenueReportComponent } from './campaign-revenue-report.component';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardLayoutComponent } from './dashboard-layout.component';
 import { IntegrationSettingsComponent } from './integration-settings.component';
@@ -13,6 +14,7 @@ import { IntegrationSubmissionDetailComponent } from './integration-submission-d
 import { IntegrationSubmissionsComponent } from './integration-submissions.component';
 import { IntegrationWebhookEventDetailComponent } from './integration-webhook-event-detail.component';
 import { IntegrationWebhookEventsComponent } from './integration-webhook-events.component';
+import { RewardsComponent } from './rewards.component';
 
 export const dashboardRoutes: Routes = [
   {
@@ -52,6 +54,14 @@ export const dashboardRoutes: Routes = [
       {
         path: 'campaigns/:campaignId',
         component: CampaignDetailComponent
+      },
+      {
+        path: 'campaigns/:campaignId/revenue-report',
+        component: CampaignRevenueReportComponent
+      },
+      {
+        path: 'rewards',
+        component: RewardsComponent
       },
       {
         path: 'ambassadors',

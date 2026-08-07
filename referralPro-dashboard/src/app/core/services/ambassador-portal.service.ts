@@ -8,6 +8,8 @@ import {
   AmbassadorCampaignDetail,
   AmbassadorCampaignOverview,
   AmbassadorDashboardResponse,
+  AmbassadorEarningsHistoryResponse,
+  AmbassadorEarningsSummary,
   AmbassadorProfile,
   AmbassadorReferralHistoryResponse,
   ReferralLinkSummary,
@@ -90,6 +92,19 @@ export class AmbassadorPortalService {
     return this.http
       .get<ApiResponse<AmbassadorAnalyticsResponse>>(`${environment.apiUrl}/ambassador/analytics`, { params: httpParams })
       .pipe(map(response => this.unwrapResponse(response, 'Unable to load analytics.')));
+  }
+
+  getEarningsSummary(): Observable<AmbassadorEarningsSummary> {
+    return this.http
+      .get<ApiResponse<AmbassadorEarningsSummary>>(`${environment.apiUrl}/ambassador/earnings`)
+      .pipe(map(response => this.unwrapResponse(response, 'Unable to load earnings summary.')));
+  }
+
+  listEarnings(page = 0, size = 20): Observable<AmbassadorEarningsHistoryResponse> {
+    const httpParams = new HttpParams().set('page', String(page)).set('size', String(size));
+    return this.http
+      .get<ApiResponse<AmbassadorEarningsHistoryResponse>>(`${environment.apiUrl}/ambassador/earnings/history`, { params: httpParams })
+      .pipe(map(response => this.unwrapResponse(response, 'Unable to load earnings history.')));
   }
 
   getProfile(): Observable<AmbassadorProfile> {

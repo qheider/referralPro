@@ -140,3 +140,37 @@ export interface UpdateAmbassadorProfileRequest {
   socialMediaHandle: string | null;
   profileImageUrl: string | null;
 }
+
+export type AmbassadorRewardStatus = 'PENDING' | 'ELIGIBLE' | 'APPROVED' | 'PAID' | 'REJECTED' | 'REVERSED';
+
+export interface AmbassadorEarningsSummary {
+  totalPaid: number;
+  totalApproved: number;
+  totalPendingOrEligible: number;
+  totalRejectedOrReversed: number;
+  rewardCount: number;
+  currency: string | null;
+}
+
+export interface AmbassadorEarning {
+  id: number;
+  campaignId: number;
+  campaignName: string;
+  referralCode: string;
+  rewardType: string;
+  rewardValue: number;
+  currency: string | null;
+  status: AmbassadorRewardStatus;
+  holdReason: string | null;
+  createdAt: string;
+  approvedAt: string | null;
+  paidAt: string | null;
+}
+
+export interface AmbassadorEarningsHistoryResponse {
+  rewards: AmbassadorEarning[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+}

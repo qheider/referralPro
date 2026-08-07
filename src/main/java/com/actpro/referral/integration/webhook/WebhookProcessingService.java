@@ -5,6 +5,8 @@ import com.actpro.referral.company.CompanyIntegrationRepository;
 import com.actpro.referral.integration.ApiSubmission;
 import com.actpro.referral.integration.ApiSubmissionRepository;
 import com.actpro.referral.integration.webhook.dto.IncomingServiceStatusPayload;
+import com.actpro.referral.integration.webhook.dto.ReferralStatusChangedEventPayload;
+import com.actpro.referral.outbox.OutboxEventPublisher;
 import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.referral.ReferralStatus;
@@ -36,6 +38,7 @@ public class WebhookProcessingService {
     private final ApiSubmissionRepository apiSubmissionRepository;
     private final ReferralRepository referralRepository;
     private final ReferralStatusMappingService referralStatusMappingService;
+    private final OutboxEventPublisher outboxEventPublisher;
     private final ObjectMapper objectMapper;
 
     @Transactional
@@ -96,6 +99,24 @@ public class WebhookProcessingService {
 
         referral.setStatus(mapped.get());
         referralRepository.save(referral);
+
+        // Phase 8 hook: revenue.RevenueEventOutboxEventHandler reacts to this to create/reverse a
+        // RevenueEvent + AmbassadorReward, decoupled from this transaction's own retry lifecycle -
+        // same MANDATORY-publish-within-the-caller's-transaction pattern as
+        // ReferralLeadService's referral.lead_registered. Deliberately doesn't carry
+        // previous/newStatus in the payload: the handler re-reads Referral.status fresh (this
+        // transaction has already committed it by the time dispatch runs), so a referral that's
+        // moved on again before dispatch is handled correctly instead of acting on stale data -
+        // see OutboxEvent's Javadoc on preferring re-fetchable ids over duplicated derived state.
+        // revenueAmount/currency have no other persisted home (Referral doesn't carry them), so
+        // they're genuinely payload-only data, not derived state that could drift.
+        outboxEventPublisher.publish(
+                event.getCompany(),
+                "REFERRAL",
+                referral.getId(),
+                "referral.status_changed",
+                new ReferralStatusChangedEventPayload(referral.getId(), payload.revenueAmount(), payload.currency(), LocalDateTime.now())
+        );
 
         event.setStatus(WebhookEventStatus.PROCESSED);
         event.setProcessedAt(LocalDateTime.now());

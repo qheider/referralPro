@@ -13,6 +13,7 @@ import com.actpro.referral.integration.dto.TestConnectionResponse;
 import com.actpro.referral.integration.dto.UpdateCompanyIntegrationConfigRequest;
 import com.actpro.referral.integration.dto.CreateUserApiCallResult;
 import com.actpro.referral.integration.webhook.ReferralStatusMappingService;
+import com.actpro.referral.revenue.RewardStatusMappingService;
 import com.actpro.referral.integration.webhook.WebhookEvent;
 import com.actpro.referral.integration.webhook.WebhookEventRepository;
 import com.actpro.referral.integration.webhook.WebhookEventStatus;
@@ -56,6 +57,7 @@ public class CompanyIntegrationService {
     private final CredentialEncryptionService credentialEncryptionService;
     private final CreateUserApiClient createUserApiClient;
     private final ReferralStatusMappingService referralStatusMappingService;
+    private final RewardStatusMappingService rewardStatusMappingService;
     private final CurrentUserService currentUserService;
     private final ObjectMapper objectMapper;
 
@@ -102,7 +104,13 @@ public class CompanyIntegrationService {
             throw new BadRequestException("statusMappingJson value '" + invalidValue + "' is not a valid, mappable ReferralStatus");
         });
         integration.setStatusMappingJson(statusMappingJson);
-        integration.setRewardMappingJson(validateJsonOrNull(request.rewardMappingJson(), "rewardMappingJson"));
+
+        String rewardMappingJson = validateJsonOrNull(request.rewardMappingJson(), "rewardMappingJson");
+        rewardStatusMappingService.findFirstInvalidMappingEntry(rewardMappingJson).ifPresent(invalidEntry -> {
+            throw new BadRequestException("rewardMappingJson entry '" + invalidEntry
+                    + "' is not a valid ReferralStatus key or QUALIFYING/REVERSING/IGNORE value");
+        });
+        integration.setRewardMappingJson(rewardMappingJson);
 
         if (integration.getStatus() == CompanyIntegrationStatus.NOT_CONFIGURED
                 || integration.getStatus() == CompanyIntegrationStatus.ERROR) {

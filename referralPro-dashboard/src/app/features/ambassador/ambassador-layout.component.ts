@@ -50,6 +50,7 @@ export class AmbassadorLayoutComponent implements OnInit {
     { label: 'Campaigns', route: '/ambassador/campaigns' },
     { label: 'Referrals', route: '/ambassador/referrals' },
     { label: 'Analytics', route: '/ambassador/analytics' },
+    { label: 'Earnings', route: '/ambassador/earnings' },
     { label: 'Profile', route: '/ambassador/profile' }
   ];
 
