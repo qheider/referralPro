@@ -1,445 +1,1447 @@
 {
   "info": {
     "name": "ReferralPro API",
-    "description": "API collection for ReferralPro - A referral marketing platform",
+    "description": "Full API surface for ReferralPro - a multi-tenant referral marketing platform. Covers the original direct-referral flow (API-key integration endpoints) plus the ambassador/Luup integration layered on top: JWT dashboard auth, campaign lifecycle, ambassador onboarding and self-service portal, company outbound API integration, inbound webhooks, and ambassador revenue/reward administration.\n\nSuggested run order for a full happy-path walkthrough: Auth > Register Company, Auth > Verify Email, Auth > Login (Company Admin), Campaign Admin > Create/Publish, Ambassador Application (Public) > Apply, Ambassador Application Admin > Approve, Auth > Accept Invitation, Auth > Login (Ambassador), Referral Redirect (Public) > Click Referral Link, Referral Leads (Public) > Submit Lead, Company Integration Admin > Update Config / Generate Webhook Secret, Webhook (Public) > Receive Service Status, Revenue Admin > List/Approve/Mark Paid Rewards.\n\nMost requests that create or return an id/token include a small test script that saves it into a collection variable, so the requests above can be run top-to-bottom without manually copying values.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
+      "name": "Auth",
+      "description": "JWT dashboard/ambassador login plus the public one-time-token flows (email verification, invitation acceptance) that activate accounts created elsewhere in this collection.",
+      "item": [
+        {
+          "name": "Login (Company Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('company_admin_token', data.token);",
+                  "  pm.collectionVariables.set('company_id', data.companyId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{company_admin_email}}\",\n  \"password\": \"{{company_admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Dashboard/ambassador login - same endpoint for both roles, the returned `role` claim determines what the token can do. Saves `company_admin_token`/`company_id` on success."
+          }
+        },
+        {
+          "name": "Login (Ambassador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('ambassador_token', data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{ambassador_email}}\",\n  \"password\": \"{{ambassador_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Log in as an ambassador (after accepting their invitation). Saves `ambassador_token` on success."
+          }
+        },
+        {
+          "name": "Get Current User (me)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{company_admin_token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "me"]
+            },
+            "description": "Roles: PLATFORM_ADMIN, COMPANY_ADMIN, AMBASSADOR. Swap the Authorization header to `Bearer {{ambassador_token}}` to check as an ambassador."
+          }
+        },
+        {
+          "name": "Verify Email (Company Admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{email_verification_token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/verify-email",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "verify-email"]
+            },
+            "description": "Public, unauthenticated. Activates the COMPANY_ADMIN account created by Company > Register Company (the account starts PENDING and cannot log in until verified). `email_verification_token` is saved automatically by that request's test script."
+          }
+        },
+        {
+          "name": "Accept Invitation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Works for both a directly-admin-created ambassador and an approved application -",
+                  "// whichever request last set `invitation_token`."
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{invitation_token}}\",\n  \"password\": \"{{ambassador_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/accept-invitation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "accept-invitation"]
+            },
+            "description": "Public, unauthenticated. Single-use, expiring token. Sets the invited user's password and activates the account - if the invitation belongs to an ambassador application with a `campaignCode`, this also auto-assigns the ambassador to that campaign and provisions their referral link (Phase 4)."
+          }
+        },
+        {
+          "name": "Hash Password (dev utility)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/hash?password=SomePassword123!",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "hash"],
+              "query": [{ "key": "password", "value": "SomePassword123!" }]
+            },
+            "description": "Dev/debug utility - returns the BCrypt hash of a password (e.g. for seeding a dashboard_users row by hand). Public, no real-world security relevance."
+          }
+        }
+      ]
+    },
+    {
       "name": "Company",
+      "description": "Public company registration - the entry point for a new tenant.",
       "item": [
         {
           "name": "Register Company",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('company_id', data.companyId);",
+                  "  pm.collectionVariables.set('api_key', data.apiKey);",
+                  "  pm.collectionVariables.set('email_verification_token', data.emailVerificationToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"companyName\": \"Acme Corporation\",\n  \"companyEmail\": \"contact@acmecorp.com\",\n  \"companyWebsite\": \"https://www.acmecorp.com\",\n  \"industry\": \"Technology\",\n  \"country\": \"United States\",\n  \"companySize\": \"50-200\",\n  \"preferredCurrency\": \"USD\",\n  \"adminFullName\": \"John Smith\",\n  \"adminWorkEmail\": \"john.smith@acmecorp.com\",\n  \"adminPhone\": \"+1-555-0123\",\n  \"password\": \"SecurePass123!\",\n  \"adminRole\": \"CEO\",\n  \"acceptedTerms\": true,\n  \"companyDescription\": \"Leading provider of innovative software solutions\",\n  \"taxId\": \"12-3456789\",\n  \"companyLogoUrl\": \"https://cdn.acmecorp.com/logo.png\",\n  \"address\": {\n    \"street\": \"123 Tech Boulevard\",\n    \"city\": \"San Francisco\",\n    \"state\": \"CA\",\n    \"zip\": \"94102\"\n  },\n  \"socialLinks\": {\n    \"linkedin\": \"https://linkedin.com/company/acmecorp\",\n    \"twitter\": \"https://twitter.com/acmecorp\",\n    \"facebook\": \"https://facebook.com/acmecorp\"\n  },\n  \"registrationCertificateUrl\": \"https://cdn.acmecorp.com/certificates/registration.pdf\",\n  \"gstVatNumber\": \"US123456789\",\n  \"industryLicenseNumber\": \"TECH-2024-5678\",\n  \"dpaAccepted\": true,\n  \"secondaryContactName\": \"Jane Doe\",\n  \"department\": \"Marketing\",\n  \"referralProgramManager\": \"Sarah Johnson\",\n  \"estimatedMonthlyReferralVolume\": \"100-500\",\n  \"rewardTypePreference\": \"Cash\",\n  \"referralSource\": \"Online Search\",\n  \"signupReferralCode\": \"PARTNER2024\"\n}"
+              "raw": "{\n  \"companyName\": \"Acme Rentals\",\n  \"companyEmail\": \"{{company_admin_email}}\",\n  \"companyWebsite\": \"https://www.acmerentals.example\",\n  \"industry\": \"Car Rental\",\n  \"country\": \"United States\",\n  \"companySize\": \"50-200\",\n  \"preferredCurrency\": \"USD\",\n  \"adminFullName\": \"Jane Admin\",\n  \"adminWorkEmail\": \"{{company_admin_email}}\",\n  \"adminPhone\": \"+1-555-0123\",\n  \"password\": \"{{company_admin_password}}\",\n  \"adminRole\": \"COMPANY_ADMIN\",\n  \"acceptedTerms\": true,\n  \"companyDescription\": \"Leading provider of vehicle rentals\",\n  \"taxId\": \"12-3456789\",\n  \"address\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"San Francisco\",\n    \"state\": \"CA\",\n    \"zip\": \"94102\"\n  },\n  \"socialLinks\": {\n    \"linkedin\": \"https://linkedin.com/company/acmerentals\",\n    \"twitter\": \"https://twitter.com/acmerentals\",\n    \"facebook\": \"https://facebook.com/acmerentals\"\n  },\n  \"gstVatNumber\": \"US123456789\",\n  \"dpaAccepted\": true,\n  \"estimatedMonthlyReferralVolume\": 250,\n  \"rewardTypePreference\": \"Cash\",\n  \"referralSource\": \"Online Search\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/companies/register",
               "host": ["{{base_url}}"],
               "path": ["api", "companies", "register"]
             },
-            "description": "Register a new company with comprehensive details. Creates both company record and admin dashboard user account. Required fields: companyName, companyEmail, companyWebsite, industry, country, adminFullName, adminWorkEmail, adminPhone, password, adminRole, companySize, preferredCurrency, acceptedTerms. Optional fields: taxId, companyLogoUrl, address, socialLinks, compliance documents, secondary contacts, business preferences."
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"companyName\": \"Acme Corporation\",\n  \"companyEmail\": \"contact@acmecorp.com\",\n  \"companyWebsite\": \"https://www.acmecorp.com\",\n  \"industry\": \"Technology\",\n  \"country\": \"United States\",\n  \"companySize\": \"50-200\",\n  \"preferredCurrency\": \"USD\",\n  \"adminFullName\": \"John Smith\",\n  \"adminWorkEmail\": \"john.smith@acmecorp.com\",\n  \"adminPhone\": \"+1-555-0123\",\n  \"password\": \"SecurePass123!\",\n  \"adminRole\": \"CEO\",\n  \"acceptedTerms\": true\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/api/companies/register",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "companies", "register"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Company registered successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Acme Corporation\",\n    \"email\": \"contact@acmecorp.com\",\n    \"apiKey\": \"cmp_live_a1b2c3d4-e5f6-7890-abcd-ef1234567890\",\n    \"adminEmail\": \"john.smith@acmecorp.com\"\n  }\n}"
-            }
-          ]
+            "description": "Public, unauthenticated. Creates the Company (status ACTIVE) and its first COMPANY_ADMIN DashboardUser (status PENDING - see Auth > Verify Email), issues a hashed/rotatable API key for the legacy direct-integration endpoints, and seeds a NOT_CONFIGURED CompanyIntegration row. Required: companyName, companyEmail, companyWebsite, industry, country, adminFullName, adminWorkEmail, adminPhone, password, adminRole (a UserRole name, e.g. COMPANY_ADMIN), companySize, preferredCurrency, acceptedTerms. The raw API key and email-verification token are only ever shown in this response."
+          }
         }
       ]
     },
     {
-      "name": "Campaign",
+      "name": "Company Admin - API Keys",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated management of the company's own API keys (the hashed, rotatable CompanyApiKey lifecycle - Register Company issues the first one automatically).",
+      "item": [
+        {
+          "name": "List API Keys",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/api-keys",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "api-keys"]
+            },
+            "description": "Never returns the raw secret - only a short preview (last 4 characters)."
+          }
+        },
+        {
+          "name": "Rotate API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('api_key', pm.response.json().data.apiKey);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/api-keys/rotate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "api-keys", "rotate"]
+            },
+            "description": "Revokes all currently active keys and issues a new one. The raw secret is shown once, in this response only - saved to `api_key`."
+          }
+        },
+        {
+          "name": "Revoke API Key",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/admin/api-keys/{{api_key_record_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "api-keys", "{{api_key_record_id}}"]
+            },
+            "description": "`api_key_record_id` is the numeric row id from List API Keys (not the key string itself)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated campaign CRUD and lifecycle (DRAFT -> SCHEDULED/ACTIVE -> PAUSED -> ACTIVE -> CLOSED/EXPIRED -> ARCHIVED). Path always carries {{company_id}} but the server ignores it in favor of the authenticated principal's own company (CampaignController#resolveCompanyId) - cross-tenant path-id tampering is rejected.",
       "item": [
         {
           "name": "Create Campaign",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('campaign_id', data.campaignId);",
+                  "  pm.collectionVariables.set('campaign_code', data.campaignCode);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_AMOUNT\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
+              "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $25 for every friend you refer\",\n  \"landingPageUrl\": \"https://acmerentals.example/summer-promo\",\n  \"startDate\": \"2026-01-01T00:00:00\",\n  \"endDate\": \"2026-12-31T23:59:59\",\n  \"ambassadorEnrollmentStart\": \"2026-01-01T00:00:00\",\n  \"ambassadorEnrollmentEnd\": \"2026-11-30T23:59:59\",\n  \"rewardType\": \"CREDIT\",\n  \"referrerRewardValue\": 25.00,\n  \"refereeRewardValue\": 10.00,\n  \"conversionEventName\": \"booking_completed\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
               "host": ["{{base_url}}"],
               "path": ["api", "companies", "{{company_id}}", "campaigns"]
             },
-            "description": "Create a new referral campaign for a company"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"name\": \"Summer Referral Campaign\",\n  \"description\": \"Get $10 for every friend you refer\",\n  \"landingPageUrl\": \"https://example.com/summer-promo\",\n  \"startDate\": \"2024-06-01T00:00:00\",\n  \"endDate\": \"2024-08-31T23:59:59\",\n  \"rewardType\": \"DISCOUNT_AMOUNT\",\n  \"referrerRewardValue\": 10.00,\n  \"refereeRewardValue\": 5.00,\n  \"conversionEventName\": \"purchase_completed\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "companies", "{{company_id}}", "campaigns"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Campaign created successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_AMOUNT\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
-            }
-          ]
+            "description": "Starts in DRAFT. rewardType is one of DISCOUNT_AMOUNT, DISCOUNT_PERCENTAGE, CREDIT, POINTS. The ambassador-enrollment window is separate from the customer-referral window (start_date/end_date) - use dates that safely bracket \"now\" for a working demo. Saves `campaign_id`/`campaign_code`."
+          }
         },
         {
           "name": "Get All Campaigns",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
             "url": {
               "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
               "host": ["{{base_url}}"],
               "path": ["api", "companies", "{{company_id}}", "campaigns"]
-            },
-            "description": "Get all campaigns for a company"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "companies", "{{company_id}}", "campaigns"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"companyId\": 1,\n      \"name\": \"Summer Referral Campaign\",\n      \"description\": \"Get $10 for every friend you refer\",\n      \"landingPageUrl\": \"https://example.com/summer-promo\",\n      \"startDate\": \"2024-06-01T00:00:00\",\n      \"endDate\": \"2024-08-31T23:59:59\",\n      \"rewardType\": \"DISCOUNT_AMOUNT\",\n      \"referrerRewardValue\": 10.00,\n      \"refereeRewardValue\": 5.00,\n      \"conversionEventName\": \"purchase_completed\",\n      \"status\": \"ACTIVE\"\n    }\n  ]\n}"
             }
-          ]
+          }
         },
         {
           "name": "Get Campaign by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Campaign",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Summer Referral Campaign (updated)\",\n  \"description\": \"Now with an extra $5 bonus\"\n}"
+            },
             "url": {
               "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}",
               "host": ["{{base_url}}"],
               "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}"]
             },
-            "description": "Get a specific campaign by ID"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"id\": 1,\n    \"companyId\": 1,\n    \"name\": \"Summer Referral Campaign\",\n    \"description\": \"Get $10 for every friend you refer\",\n    \"landingPageUrl\": \"https://example.com/summer-promo\",\n    \"startDate\": \"2024-06-01T00:00:00\",\n    \"endDate\": \"2024-08-31T23:59:59\",\n    \"rewardType\": \"DISCOUNT_AMOUNT\",\n    \"referrerRewardValue\": 10.00,\n    \"refereeRewardValue\": 5.00,\n    \"conversionEventName\": \"purchase_completed\",\n    \"status\": \"ACTIVE\"\n  }\n}"
-            }
-          ]
+            "description": "Partial update - every field optional, only non-null values applied. rewardType/referrerRewardValue/refereeRewardValue/conversionEventName/startDate are locked once the campaign leaves DRAFT (rejected with 400 otherwise), so a live campaign's already-calculated rewards can't be rewritten out from under it."
+          }
+        },
+        {
+          "name": "Publish Campaign",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}/publish",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}", "publish"]
+            },
+            "description": "DRAFT -> SCHEDULED (start date in the future) or ACTIVE (start date already passed)."
+          }
+        },
+        {
+          "name": "Pause Campaign",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}/pause",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}", "pause"]
+            },
+            "description": "ACTIVE -> PAUSED. Also disables any ACTIVE ambassador referral links for this campaign."
+          }
+        },
+        {
+          "name": "Resume Campaign",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}/resume",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}", "resume"]
+            },
+            "description": "PAUSED -> ACTIVE (rejected if the referral window already passed). Re-enables the referral links this same campaign's Pause disabled."
+          }
+        },
+        {
+          "name": "Close Campaign",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}/close",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}", "close"]
+            },
+            "description": "SCHEDULED/ACTIVE/PAUSED -> CLOSED (admin-initiated, permanent, distinct from the worker-driven EXPIRED transition)."
+          }
+        },
+        {
+          "name": "Archive Campaign",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/companies/{{company_id}}/campaigns/{{campaign_id}}/archive",
+              "host": ["{{base_url}}"],
+              "path": ["api", "companies", "{{company_id}}", "campaigns", "{{campaign_id}}", "archive"]
+            },
+            "description": "EXPIRED/CLOSED -> ARCHIVED."
+          }
         }
       ]
     },
     {
-      "name": "Referral",
+      "name": "Public Campaign",
+      "description": "Unauthenticated - a prospective ambassador opening a published campaign's join link has no account yet.",
+      "item": [
+        {
+          "name": "Resolve Join Link",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/campaigns/join/{{campaign_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "campaigns", "join", "{{campaign_code}}"]
+            },
+            "description": "Resolves a campaign_code to company/campaign display info + whether enrollment is currently open + a human-readable reason if not. A DRAFT campaign's code is treated as not-found (not yet discoverable). Used by the /join/{campaignCode} landing page before showing the application form."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ambassador Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated direct ambassador provisioning (the alternative to the public self-service Ambassador Application flow below).",
+      "item": [
+        {
+          "name": "Create Ambassador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('ambassador_id', data.ambassador.id);",
+                  "  if (data.invitationToken) { pm.collectionVariables.set('invitation_token', data.invitationToken); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Amy\",\n  \"lastName\": \"Ambassador\",\n  \"email\": \"{{ambassador_email}}\",\n  \"phone\": \"+1-555-0199\",\n  \"displayName\": \"Amy A.\",\n  \"socialMediaPlatform\": \"Instagram\",\n  \"socialMediaHandle\": \"@amy.ambassador\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors"]
+            },
+            "description": "Provisions a DashboardUser (PENDING/INVITED) + AmbassadorProfile and issues a one-time invitation token (see Auth > Accept Invitation) - no temporary password is emailed. Company-wide only; use the Ambassador Application flow instead for a campaign-scoped join-link signup."
+          }
+        },
+        {
+          "name": "Resend Invitation",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}/resend-invitation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}", "resend-invitation"]
+            },
+            "description": "Issues a fresh invitation token for an ambassador who never completed onboarding."
+          }
+        },
+        {
+          "name": "List Ambassadors",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sort", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "ACTIVE", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Ambassador",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Update Ambassador",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Amy\",\n  \"lastName\": \"Ambassador\",\n  \"displayName\": \"Amy A.\",\n  \"phone\": \"+1-555-0199\",\n  \"status\": \"ACTIVE\",\n  \"socialMediaPlatform\": \"Instagram\",\n  \"socialMediaHandle\": \"@amy.ambassador\",\n  \"bio\": \"Travel blogger and car enthusiast.\",\n  \"profileImageUrl\": \"https://cdn.example.com/amy.png\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Activate Ambassador",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}/activate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}", "activate"]
+            }
+          }
+        },
+        {
+          "name": "Deactivate Ambassador",
+          "request": {
+            "method": "PATCH",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}/deactivate",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}", "deactivate"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaign Assignment Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated: assign/unassign ACTIVE ambassadors to campaigns (each assignment provisions a personal referral link). Not needed for ambassadors who joined through a campaign's join link - that flow auto-assigns on invitation acceptance (Phase 4).",
+      "item": [
+        {
+          "name": "Assign Ambassadors to Campaign",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ambassadorIds\": [{{ambassador_id}}]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/campaigns/{{campaign_id}}/ambassadors",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "campaigns", "{{campaign_id}}", "ambassadors"]
+            },
+            "description": "Precondition: each ambassador must already be ACTIVE (a brand-new INVITED account can't be bulk-assigned this way; see Auth > Accept Invitation's campaign-scoped auto-assign instead)."
+          }
+        },
+        {
+          "name": "List Campaign Assignments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/campaigns/{{campaign_id}}/ambassadors",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "campaigns", "{{campaign_id}}", "ambassadors"]
+            }
+          }
+        },
+        {
+          "name": "Remove Campaign Assignment",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/admin/campaigns/{{campaign_id}}/ambassadors/{{ambassador_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "campaigns", "{{campaign_id}}", "ambassadors", "{{ambassador_id}}"]
+            },
+            "description": "Disables that ambassador's referral link for this campaign specifically - a later campaign-wide Resume won't wrongly re-enable it."
+          }
+        },
+        {
+          "name": "List Ambassador's Campaigns",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassadors/{{ambassador_id}}/campaigns",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassadors", "{{ambassador_id}}", "campaigns"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ambassador Application (Public)",
+      "description": "Unauthenticated self-service \"apply to become an ambassador\" flow - the public counterpart to Ambassador Admin > Create Ambassador.",
+      "item": [
+        {
+          "name": "Apply",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('application_id', pm.response.json().data.applicationId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Priya\",\n  \"lastName\": \"Partner\",\n  \"email\": \"{{ambassador_email}}\",\n  \"phone\": \"+1-555-0177\",\n  \"displayName\": \"Priya P.\",\n  \"bio\": \"Local travel influencer.\",\n  \"socialMediaPlatform\": \"TikTok\",\n  \"socialMediaHandle\": \"@priya.partner\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ambassador-applications/apply?companyId={{company_id}}&campaignCode={{campaign_code}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador-applications", "apply"],
+              "query": [
+                { "key": "companyId", "value": "{{company_id}}" },
+                { "key": "campaignCode", "value": "{{campaign_code}}", "description": "Optional - omit for a company-wide application not tied to one campaign's join link" }
+              ]
+            },
+            "description": "When campaignCode is present, the campaign must belong to companyId, not be DRAFT, and have enrollment currently open, or the submission is rejected outright. Saves `application_id`."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ambassador Application Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated review of applications submitted through the public Apply endpoint.",
+      "item": [
+        {
+          "name": "List Applications",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassador-applications?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassador-applications"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" },
+                { "key": "sort", "value": "", "disabled": true },
+                { "key": "search", "value": "", "disabled": true },
+                { "key": "status", "value": "PENDING", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Application",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassador-applications/{{application_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassador-applications", "{{application_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Approve Application",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('ambassador_id', data.ambassador.id);",
+                  "  pm.collectionVariables.set('invitation_token', data.invitationToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassador-applications/{{application_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassador-applications", "{{application_id}}", "approve"]
+            },
+            "description": "Provisions the DashboardUser/AmbassadorProfile (INVITED) and issues an invitation token. If the application had a campaignCode, campaign assignment + referral link only happen once the invitation is accepted (Auth > Accept Invitation), not here. Saves `ambassador_id`/`invitation_token`."
+          }
+        },
+        {
+          "name": "Reject Application",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Audience size below current campaign threshold.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/ambassador-applications/{{application_id}}/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "ambassador-applications", "{{application_id}}", "reject"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ambassador Portal (Self-Service)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{ambassador_token}}", "type": "string" }]
+      },
+      "description": "AMBASSADOR JWT-authenticated self-service portal - dashboard, assigned campaigns, referral links, referral history, analytics, earnings, and profile. Every endpoint resolves the caller's own ambassador profile server-side; no ambassador id is ever taken from the client.",
+      "item": [
+        {
+          "name": "Get Dashboard",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "dashboard"]
+            }
+          }
+        },
+        {
+          "name": "List My Campaigns",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/campaigns",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "campaigns"]
+            }
+          }
+        },
+        {
+          "name": "Get Campaign Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/campaigns/{{campaign_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "campaigns", "{{campaign_id}}"]
+            }
+          }
+        },
+        {
+          "name": "List My Referral Links",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const links = pm.response.json().data;",
+                  "  if (links && links.length) { pm.collectionVariables.set('referral_link_token', links[0].publicToken); }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/referral-links",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "referral-links"]
+            },
+            "description": "Saves the first link's `referral_link_token` (the public token used by Referral Redirect (Public) and Referral Leads (Public))."
+          }
+        },
+        {
+          "name": "Get Campaign Referral Link",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/campaigns/{{campaign_id}}/referral-link",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "campaigns", "{{campaign_id}}", "referral-link"]
+            }
+          }
+        },
+        {
+          "name": "List My Referrals",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/referrals?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "referrals"],
+              "query": [
+                { "key": "campaignId", "value": "", "disabled": true },
+                { "key": "status", "value": "REGISTERED", "disabled": true },
+                { "key": "fromDate", "value": "", "disabled": true },
+                { "key": "toDate", "value": "", "disabled": true },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            },
+            "description": "status is a ReferralStatus: ACTIVE, LINK_OPENED, REGISTERED, BOOKING_STARTED, BOOKING_CONFIRMED, RENTAL_STARTED, COMPLETED, CONVERTED, REJECTED, EXPIRED, CANCELLED."
+          }
+        },
+        {
+          "name": "Get Analytics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "analytics"],
+              "query": [
+                { "key": "campaignId", "value": "", "disabled": true },
+                { "key": "fromDate", "value": "", "disabled": true },
+                { "key": "toDate", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Defaults to the trailing 30 days if fromDate/toDate are omitted."
+          }
+        },
+        {
+          "name": "Get Earnings Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/earnings",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "earnings"]
+            },
+            "description": "Phase 8: totals for PAID/APPROVED/PENDING+ELIGIBLE/REJECTED+REVERSED rewards, calculated from ambassador-attributed referrals that reached a qualifying status."
+          }
+        },
+        {
+          "name": "List Earnings History",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/earnings/history?page=0&size=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "earnings", "history"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "profile"]
+            }
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Priya\",\n  \"lastName\": \"Partner\",\n  \"displayName\": \"Priya P.\",\n  \"phone\": \"+1-555-0177\",\n  \"bio\": \"Local travel influencer.\",\n  \"socialMediaPlatform\": \"TikTok\",\n  \"socialMediaHandle\": \"@priya.partner\",\n  \"profileImageUrl\": \"https://cdn.example.com/priya.png\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ambassador/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "ambassador", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Referral (Direct API-Key Flow)",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          { "key": "key", "value": "Authorization", "type": "string" },
+          { "key": "value", "value": "ApiKey {{api_key}}", "type": "string" }
+        ]
+      },
+      "description": "Legacy direct-referral integration surface, authenticated with `Authorization: ApiKey {{api_key}}` (ROLE_COMPANY, not a dashboard JWT). Pre-dates the ambassador model; still supported side-by-side.",
       "item": [
         {
           "name": "Generate Referral Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('referral_code', pm.response.json().data.referralCode);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"campaignId\": 1,\n  \"externalUserId\": \"user_12345\",\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"John Doe\"\n}"
+              "raw": "{\n  \"campaignId\": {{campaign_id}},\n  \"externalUserId\": \"user_12345\",\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"John Doe\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/referrals/generate",
               "host": ["{{base_url}}"],
               "path": ["api", "referrals", "generate"]
             },
-            "description": "Generate a unique referral link for a customer to share with friends"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"campaignId\": 1,\n  \"externalUserId\": \"user_12345\",\n  \"email\": \"john.doe@example.com\",\n  \"name\": \"John Doe\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/api/referrals/generate",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "referrals", "generate"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Referral link generated successfully\",\n  \"data\": {\n    \"referralCode\": \"ref_abc123def456\",\n    \"referralLink\": \"{{base_url}}/r/ref_abc123def456\",\n    \"campaignId\": 1,\n    \"externalUserId\": \"user_12345\",\n    \"email\": \"john.doe@example.com\",\n    \"name\": \"John Doe\",\n    \"createdAt\": \"2024-06-15T10:30:00\"\n  }\n}"
-            }
-          ]
-        },
-        {
-          "name": "Referral Redirect",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/r/ref_abc123def456",
-              "host": ["{{base_url}}"],
-              "path": ["r", "ref_abc123def456"]
-            },
-            "description": "Public endpoint to track clicks and redirect to campaign landing page"
-          },
-          "response": [
-            {
-              "name": "Redirect Response",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{base_url}}/r/ref_abc123def456",
-                  "host": ["{{base_url}}"],
-                  "path": ["r", "ref_abc123def456"]
-                }
-              },
-              "status": "Moved Permanently",
-              "code": 301,
-              "header": [
-                {
-                  "key": "Location",
-                  "value": "https://example.com/summer-promo?ref=ref_abc123def456"
-                }
-              ],
-              "body": ""
-            }
-          ]
+            "description": "Generates a unique referral link for a direct (non-ambassador) customer to share with friends. Saves `referral_code`."
+          }
         }
       ]
     },
     {
-      "name": "Conversion",
+      "name": "Referral Redirect (Public)",
+      "description": "Unauthenticated - records the click and redirects. Accepts both ambassador referral-link public tokens and legacy referral codes.",
+      "item": [
+        {
+          "name": "Click Referral Link",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/r/{{referral_link_token}}",
+              "host": ["{{base_url}}"],
+              "path": ["r", "{{referral_link_token}}"]
+            },
+            "description": "302 redirect to the campaign's landing page with `?ref=...`. Sets the `rp_attr_session` attribution cookie Postman will carry into the next request in this collection (enable cookie jar / interceptor). Use {{referral_link_token}} for an ambassador link or {{referral_code}} for the legacy direct flow."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Referral Leads (Public)",
+      "description": "Unauthenticated - turns an ambassador referral-link click into a Referral once the visitor identifies themselves.",
+      "item": [
+        {
+          "name": "Submit Lead",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('referral_code', pm.response.json().data.referralCode);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Cara Customer\",\n  \"email\": \"cara.customer@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/referral-links/{{referral_link_token}}/leads",
+              "host": ["{{base_url}}"],
+              "path": ["api", "referral-links", "{{referral_link_token}}", "leads"]
+            },
+            "description": "Idempotent within the same browsing session (rp_attr_session cookie from Referral Redirect > Click Referral Link). Creates the Referral in REGISTERED status and publishes the referral.lead_registered outbox event that drives the Company Integration outbound delivery pipeline."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Conversion (Direct API-Key Flow)",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          { "key": "key", "value": "Authorization", "type": "string" },
+          { "key": "value", "value": "ApiKey {{api_key}}", "type": "string" }
+        ]
+      },
       "item": [
         {
           "name": "Complete Conversion",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"referralCode\": \"ref_abc123def456\",\n  \"externalUserId\": \"user_54321\",\n  \"email\": \"jane.smith@example.com\",\n  \"name\": \"Jane Smith\",\n  \"eventName\": \"purchase_completed\"\n}"
+              "raw": "{\n  \"referralCode\": \"{{referral_code}}\",\n  \"externalUserId\": \"user_54321\",\n  \"email\": \"jane.smith@example.com\",\n  \"name\": \"Jane Smith\",\n  \"eventName\": \"booking_completed\"\n}"
             },
             "url": {
               "raw": "{{base_url}}/api/conversions",
               "host": ["{{base_url}}"],
               "path": ["api", "conversions"]
             },
-            "description": "Record a successful conversion and issue rewards to both referrer and referee"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"referralCode\": \"ref_abc123def456\",\n  \"externalUserId\": \"user_54321\",\n  \"email\": \"jane.smith@example.com\",\n  \"name\": \"Jane Smith\",\n  \"eventName\": \"purchase_completed\"\n}"
-                },
-                "url": {
-                  "raw": "{{base_url}}/api/conversions",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "conversions"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": \"Conversion completed and rewards issued successfully\",\n  \"data\": {\n    \"conversionId\": 1,\n    \"status\": \"COMPLETED\",\n    \"referrerReward\": {\n      \"couponCode\": \"REWARD_ABC123\",\n      \"rewardValue\": \"10.00\"\n    },\n    \"refereeReward\": {\n      \"couponCode\": \"REWARD_DEF456\",\n      \"rewardValue\": \"5.00\"\n    }\n  }\n}"
-            }
-          ]
+            "description": "Legacy direct-referral flow only - rejects ambassador-driven referrals (a Referral with no PlatformUser referrer). eventName must match the campaign's conversionEventName. Records the conversion and issues coupon-code rewards to both referrer and referee (reward.Reward, distinct from the ambassador-attribution AmbassadorReward model under Revenue Admin)."
+          }
         }
       ]
     },
     {
-      "name": "Reward",
+      "name": "Reward (Direct API-Key Flow)",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          { "key": "key", "value": "Authorization", "type": "string" },
+          { "key": "value", "value": "ApiKey {{api_key}}", "type": "string" }
+        ]
+      },
       "item": [
         {
           "name": "Get Rewards by User",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "ApiKey {{api_key}}"
-              }
-            ],
             "url": {
               "raw": "{{base_url}}/api/rewards/users/{{external_user_id}}",
               "host": ["{{base_url}}"],
               "path": ["api", "rewards", "users", "{{external_user_id}}"]
-            },
-            "description": "Get all rewards issued to a specific user"
-          },
-          "response": [
-            {
-              "name": "Success Response",
-              "originalRequest": {
-                "method": "GET",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "ApiKey {{api_key}}"
-                  }
-                ],
-                "url": {
-                  "raw": "{{base_url}}/api/rewards/users/{{external_user_id}}",
-                  "host": ["{{base_url}}"],
-                  "path": ["api", "rewards", "users", "{{external_user_id}}"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "header": [],
-              "body": "{\n  \"success\": true,\n  \"message\": null,\n  \"data\": {\n    \"externalUserId\": \"user_12345\",\n    \"rewards\": [\n      {\n        \"id\": 1,\n        \"couponCode\": \"REWARD_ABC123\",\n        \"rewardType\": \"DISCOUNT_AMOUNT\",\n        \"rewardValue\": 10.00,\n        \"status\": \"ACTIVE\"\n      },\n      {\n        \"id\": 2,\n        \"couponCode\": \"REWARD_DEF456\",\n        \"rewardType\": \"DISCOUNT_AMOUNT\",\n        \"rewardValue\": 5.00,\n        \"status\": \"PENDING\"\n      }\n    ]\n  }\n}"
             }
-          ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Dashboard (Company Analytics)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated cross-entity analytics (native SQL under the hood, per this repo's convention) for the direct-referral flow's Campaign/Conversion/Reward model.",
+      "item": [
+        {
+          "name": "Campaigns Overview",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/overview",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "overview"]
+            }
+          }
+        },
+        {
+          "name": "Campaign Stats",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/{{campaign_id}}/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "{{campaign_id}}", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Conversion Funnel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/{{campaign_id}}/funnel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "{{campaign_id}}", "funnel"]
+            }
+          }
+        },
+        {
+          "name": "Top Referrers",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/{{campaign_id}}/top-referrers?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "{{campaign_id}}", "top-referrers"],
+              "query": [{ "key": "limit", "value": "10" }]
+            }
+          }
+        },
+        {
+          "name": "Time Series Metrics",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/{{campaign_id}}/metrics/time-series?granularity=daily",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "{{campaign_id}}", "metrics", "time-series"],
+              "query": [
+                { "key": "startDate", "value": "", "disabled": true },
+                { "key": "endDate", "value": "", "disabled": true },
+                { "key": "granularity", "value": "daily" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reward Summary",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/dashboard/campaigns/{{campaign_id}}/rewards/summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "dashboard", "campaigns", "{{campaign_id}}", "rewards", "summary"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Company Integration Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated: the company's own outgoing Create-User API config (Phase 6) and inbound webhook config/monitoring (Phase 7). Exactly one CompanyIntegration row per company, so no {companyId} path variable.",
+      "item": [
+        {
+          "name": "Get Config",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('webhook_public_id', pm.response.json().data.webhookPublicId);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration"]
+            },
+            "description": "Never returns raw credential values - only hasCredentials/hasWebhookSigningSecret booleans. Saves `webhook_public_id`."
+          }
+        },
+        {
+          "name": "Update Config",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiBaseUrl\": \"https://partner-api.example.com/create-user\",\n  \"authType\": \"API_KEY\",\n  \"apiKeyHeaderName\": \"X-Api-Key\",\n  \"apiKeyValue\": \"partner-secret-value\",\n  \"requestTimeoutMs\": 10000,\n  \"maxRetryAttempts\": 5,\n  \"statusMappingJson\": \"{\\\"SERVICE_COMPLETED\\\":\\\"COMPLETED\\\",\\\"SERVICE_CANCELLED\\\":\\\"CANCELLED\\\"}\",\n  \"rewardMappingJson\": \"{\\\"BOOKING_CONFIRMED\\\":\\\"QUALIFYING\\\"}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration"]
+            },
+            "description": "authType is one of NONE, API_KEY, BEARER_TOKEN, BASIC - supply only the matching credential fields (apiKeyHeaderName/apiKeyValue, bearerToken, or basicUsername/basicPassword); omitting all credential fields for the current auth type keeps the existing stored ones. statusMappingJson maps a company status string to a ReferralStatus name (applied by webhook processing). rewardMappingJson (Phase 8) optionally overrides which mapped ReferralStatus is QUALIFYING/REVERSING/IGNORE for revenue/reward purposes - defaults to COMPLETED/CONVERTED=QUALIFYING, CANCELLED/REJECTED=REVERSING if omitted."
+          }
+        },
+        {
+          "name": "Test Connection",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/test-connection",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "test-connection"]
+            },
+            "description": "Best-effort reachability+auth probe - success is any HTTP response other than 401/403 (no known health-check contract for an arbitrary target API)."
+          }
+        },
+        {
+          "name": "Enable Integration",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/enable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "enable"]
+            }
+          }
+        },
+        {
+          "name": "Disable Integration",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/disable",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "disable"]
+            },
+            "description": "Queued outgoing submissions are paused, not cancelled - they resume automatically if re-enabled."
+          }
+        },
+        {
+          "name": "List Submissions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/submissions?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "submissions"],
+              "query": [
+                { "key": "status", "value": "SUCCEEDED", "disabled": true },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "status is one of PENDING, PROCESSING, SUCCEEDED, RETRY_SCHEDULED, PERMANENTLY_FAILED, CANCELLED."
+          }
+        },
+        {
+          "name": "Get Submission Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/submissions/{{submission_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "submissions", "{{submission_id}}"]
+            },
+            "description": "Full per-attempt history, including the failure category/backoff timing of each retry."
+          }
+        },
+        {
+          "name": "Generate/Rotate Webhook Secret",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  pm.collectionVariables.set('webhook_secret', pm.response.json().data.webhookSecret);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/webhook-secret",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "webhook-secret"]
+            },
+            "description": "The raw value is shown once, in this response only - saved to `webhook_secret` for use by the Webhook (Public) request's pre-request signing script."
+          }
+        },
+        {
+          "name": "List Webhook Events",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/webhook-events?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "webhook-events"],
+              "query": [
+                { "key": "status", "value": "PROCESSED", "disabled": true },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "status is one of RECEIVED, PROCESSING, PROCESSED, IGNORED, RETRY_SCHEDULED, MANUAL_REVIEW."
+          }
+        },
+        {
+          "name": "Get Webhook Event Detail",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/company-integration/webhook-events/{{webhook_event_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "company-integration", "webhook-events", "{{webhook_event_id}}"]
+            },
+            "description": "Pretty-printed raw payload plus the match/status-mapping outcome and any failure reason."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook (Public)",
+      "description": "Public, unauthenticated by API key/JWT - authenticated instead via HMAC-SHA256 signature (X-Luup-Signature/X-Luup-Timestamp headers). The company's own systems call this to report service-status changes for a referral.",
+      "item": [
+        {
+          "name": "Receive Service Status",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Signs the request body exactly as WebhookSignatureVerifier expects:",
+                  "// HMAC-SHA256(timestamp + '.' + rawBody, webhookSecret), hex-encoded.",
+                  "// Requires {{webhook_secret}} (Company Integration Admin > Generate/Rotate Webhook Secret).",
+                  "const secret = pm.collectionVariables.get('webhook_secret');",
+                  "const body = pm.request.body ? pm.request.body.raw : '';",
+                  "const timestamp = Math.floor(Date.now() / 1000).toString();",
+                  "const signature = CryptoJS.HmacSHA256(timestamp + '.' + body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.collectionVariables.set('webhook_timestamp', timestamp);",
+                  "pm.collectionVariables.set('webhook_signature', signature);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Luup-Signature", "value": "{{webhook_signature}}" },
+              { "key": "X-Luup-Timestamp", "value": "{{webhook_timestamp}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventId\": \"evt_{{$randomUUID}}\",\n  \"eventType\": \"SERVICE_COMPLETED\",\n  \"occurredAt\": \"2026-01-15T10:30:00\",\n  \"companyUserReference\": \"cus_12345\",\n  \"serviceReference\": \"txn_67890\",\n  \"status\": \"SERVICE_COMPLETED\",\n  \"revenueAmount\": 150.00,\n  \"currency\": \"USD\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/integrations/{{webhook_public_id}}/webhooks/service-status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "integrations", "{{webhook_public_id}}", "webhooks", "service-status"]
+            },
+            "description": "`status` is matched against the company's configured statusMappingJson (see Company Integration Admin > Update Config) to resolve a ReferralStatus; `serviceReference`/`companyUserReference` are matched against a prior outgoing ApiSubmission's stored references to resolve the target Referral. `eventId` is the redelivery-dedup key - resending the identical body/eventId is safely idempotent. `revenueAmount`/`currency` feed Phase 8's RevenueEvent/AmbassadorReward calculation when the mapped status is QUALIFYING/REVERSING. The pre-request script signs the body automatically; just make sure `webhook_secret`/`webhook_public_id` are populated first."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Revenue Admin",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{company_admin_token}}", "type": "string" }]
+      },
+      "description": "COMPANY_ADMIN JWT-authenticated (Phase 8): ambassador-attribution revenue/reward monitoring and the manual ELIGIBLE -> APPROVED -> PAID / REJECTED payout lifecycle. A reward is created automatically when an ambassador-driven referral reaches a qualifying status via an inbound webhook - there is no manual \"create reward\" endpoint.",
+      "item": [
+        {
+          "name": "List Rewards",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/rewards?limit=50",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "rewards"],
+              "query": [
+                { "key": "campaignId", "value": "{{campaign_id}}", "disabled": true },
+                { "key": "status", "value": "ELIGIBLE", "disabled": true },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "status is one of PENDING, ELIGIBLE, APPROVED, PAID, REJECTED, REVERSED."
+          }
+        },
+        {
+          "name": "Get Reward",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/rewards/{{reward_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "rewards", "{{reward_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Approve Reward",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/rewards/{{reward_id}}/approve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "rewards", "{{reward_id}}", "approve"]
+            },
+            "description": "Only an ELIGIBLE reward can be approved. A reward may instead be stuck PENDING with holdReason=CURRENCY_MISMATCH if the webhook's currency didn't match the company's preferredCurrency - resolve that manually (approve or reject) rather than expecting it to auto-promote."
+          }
+        },
+        {
+          "name": "Mark Reward Paid",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/rewards/{{reward_id}}/mark-paid",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "rewards", "{{reward_id}}", "mark-paid"]
+            },
+            "description": "Only an APPROVED reward can be marked paid. Manual payout tracking only - no payment gateway integration. Once PAID, a reward is never auto-reversed even if the underlying referral is later cancelled (the RevenueEvent still flips to REVERSED for reporting)."
+          }
+        },
+        {
+          "name": "Reject Reward",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Suspected fraudulent booking.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/rewards/{{reward_id}}/reject",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "rewards", "{{reward_id}}", "reject"]
+            },
+            "description": "Allowed from any pre-PAID status."
+          }
+        },
+        {
+          "name": "Get Campaign Revenue Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/admin/revenue/campaigns/{{campaign_id}}/report",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "revenue", "campaigns", "{{campaign_id}}", "report"]
+            },
+            "description": "Qualifying/reversed event counts, revenue totals by currency (excludes currency-mismatched rows from the sum rather than blending them), reward totals by status, and an ambassador leaderboard."
+          }
         }
       ]
     }
   ],
   "variable": [
-    {
-      "key": "base_url",
-      "value": "http://localhost:8080",
-      "type": "string",
-      "disabled": false
-    },
-    {
-      "key": "api_key",
-      "value": "your_api_key_here",
-      "type": "string",
-      "disabled": false
-    },
-    {
-      "key": "company_id",
-      "value": "1",
-      "type": "string",
-      "disabled": false
-    },
-    {
-      "key": "campaign_id",
-      "value": "1",
-      "type": "string",
-      "disabled": false
-    },
-    {
-      "key": "external_user_id",
-      "value": "user_12345",
-      "type": "string",
-      "disabled": false
-    }
+    { "key": "base_url", "value": "http://localhost:8080", "type": "string" },
+    { "key": "company_admin_email", "value": "admin@acmerentals.example", "type": "string" },
+    { "key": "company_admin_password", "value": "SecurePass123!", "type": "string" },
+    { "key": "ambassador_email", "value": "ambassador@example.com", "type": "string" },
+    { "key": "ambassador_password", "value": "AmbassadorPass123!", "type": "string" },
+    { "key": "company_id", "value": "1", "type": "string" },
+    { "key": "campaign_id", "value": "1", "type": "string" },
+    { "key": "campaign_code", "value": "", "type": "string" },
+    { "key": "api_key", "value": "", "type": "string" },
+    { "key": "api_key_record_id", "value": "1", "type": "string" },
+    { "key": "company_admin_token", "value": "", "type": "string" },
+    { "key": "ambassador_token", "value": "", "type": "string" },
+    { "key": "email_verification_token", "value": "", "type": "string" },
+    { "key": "invitation_token", "value": "", "type": "string" },
+    { "key": "ambassador_id", "value": "1", "type": "string" },
+    { "key": "application_id", "value": "1", "type": "string" },
+    { "key": "referral_code", "value": "", "type": "string" },
+    { "key": "referral_link_token", "value": "", "type": "string" },
+    { "key": "external_user_id", "value": "user_12345", "type": "string" },
+    { "key": "submission_id", "value": "1", "type": "string" },
+    { "key": "webhook_public_id", "value": "", "type": "string" },
+    { "key": "webhook_secret", "value": "", "type": "string" },
+    { "key": "webhook_signature", "value": "", "type": "string" },
+    { "key": "webhook_timestamp", "value": "", "type": "string" },
+    { "key": "webhook_event_id", "value": "1", "type": "string" },
+    { "key": "reward_id", "value": "1", "type": "string" }
   ]
 }
