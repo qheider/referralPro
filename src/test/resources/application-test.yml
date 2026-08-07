@@ -22,6 +22,11 @@ app:
     dispatch-enabled: false
   campaign:
     expiration-enabled: false
+  integration:
+    dispatch-enabled: false
+    encryption-key: test-integration-encryption-key-for-testing-only
+  webhook:
+    dispatch-enabled: false
 
 logging:
   level:

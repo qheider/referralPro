@@ -1,0 +1,56 @@
+<div class="mx-auto max-w-5xl space-y-6">
+  <section class="rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-900 to-indigo-700 p-6 text-white shadow-sm sm:p-8">
+    <a routerLink="/dashboard/integration/webhook-events" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-100 transition-colors hover:text-white">
+      <span aria-hidden="true">←</span>
+      Back to webhook events
+    </a>
+    <h2 class="mt-4 text-3xl font-semibold sm:text-4xl">Webhook event #{{ event?.id ?? '' }}</h2>
+  </section>
+
+  <section *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    {{ errorMessage }}
+  </section>
+
+  <section *ngIf="isLoading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <p class="text-sm font-medium text-slate-600">Loading webhook event detail...</p>
+  </section>
+
+  <ng-container *ngIf="!isLoading && event">
+    <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.status }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Event type</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.eventType }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Event id</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.eventId }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Matched referral</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.matchedReferralId ? '#' + event.matchedReferralId : '—' }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Mapped status</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.mappedStatus || '—' }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Attempts</p>
+          <p class="mt-2 text-sm text-slate-900">{{ event.attempts }} / {{ event.maxAttempts }}</p>
+        </div>
+      </div>
+      <div *ngIf="event.failureReason" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ event.failureReason }}
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <h3 class="text-lg font-semibold text-slate-900">Raw payload</h3>
+      <pre class="mt-4 overflow-x-auto rounded-xl bg-slate-900 p-4 text-xs text-slate-100">{{ formattedPayload }}</pre>
+    </section>
+  </ng-container>
+</div>

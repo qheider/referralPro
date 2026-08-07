@@ -41,6 +41,11 @@ export class DashboardLayoutComponent implements OnInit {
       description: 'Manage ambassador accounts'
     },
     {
+      label: 'Integration',
+      route: '/dashboard/integration',
+      description: 'Company API integration configuration and delivery monitoring'
+    },
+    {
       label: 'Analytics',
       description: 'Deep analytics routes in phase 7',
       disabled: true
@@ -128,6 +133,31 @@ export class DashboardLayoutComponent implements OnInit {
 
     if (url.includes('/dashboard/campaigns/')) {
       this.currentPageTitle = 'Campaign detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/submissions/')) {
+      this.currentPageTitle = 'Submission detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/submissions')) {
+      this.currentPageTitle = 'Delivery monitoring';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/webhook-events/')) {
+      this.currentPageTitle = 'Webhook event detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/webhook-events')) {
+      this.currentPageTitle = 'Webhook events';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration')) {
+      this.currentPageTitle = 'Integration';
       return;
     }
 

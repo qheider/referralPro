@@ -34,6 +34,7 @@ services:
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
     ports:
       - "8080:8080"
     # depends_on:

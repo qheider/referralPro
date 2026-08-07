@@ -117,6 +117,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 path.equals("/api/ambassador-applications/apply") ||
                 (path.startsWith("/api/referral-links/") && path.endsWith("/leads")) ||
                 path.startsWith("/api/campaigns/join/") ||
+                (path.startsWith("/api/v1/integrations/") && path.endsWith("/webhooks/service-status")) ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||

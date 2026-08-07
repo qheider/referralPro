@@ -51,6 +51,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/referral-links/*/leads").permitAll()
                         // Public campaign join-link resolution - the visitor has no account yet.
                         .requestMatchers("/api/campaigns/join/**").permitAll()
+                        // Public inbound company webhooks - authenticated via HMAC signature
+                        // (WebhookSignatureVerifier), not a bearer token. Single-segment wildcard
+                        // for {companyCode}, not a broad /**.
+                        .requestMatchers("/api/v1/integrations/*/webhooks/service-status").permitAll()
                         .requestMatchers("/r/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

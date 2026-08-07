@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 /**
  * Transactional halves of a dispatch cycle, kept separate from {@link OutboxDispatcher}'s
@@ -16,6 +17,11 @@ import java.util.List;
  * neighbors in the same batch. (A single method calling itself wouldn't get separate
  * transactions - Spring's @Transactional proxy doesn't apply to self-invocation - hence the
  * separate bean.)
+ * <p>
+ * Injects every {@link OutboxEventHandler} bean (Spring orders the list by {@code @Order}) and
+ * routes each event to the first handler whose {@link OutboxEventHandler#supports} matches -
+ * {@link LoggingOutboxEventHandler} is ordered last and matches everything, so it's always the
+ * fallback for an event type without a dedicated handler.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,7 +29,7 @@ import java.util.List;
 public class OutboxDispatchService {
 
     private final OutboxEventRepository outboxEventRepository;
-    private final OutboxEventHandler outboxEventHandler;
+    private final List<OutboxEventHandler> outboxEventHandlers;
 
     @Value("${app.outbox.max-attempts:5}")
     private int maxAttempts;
@@ -40,7 +46,11 @@ public class OutboxDispatchService {
     @Transactional
     public void dispatchOne(OutboxEvent event) {
         try {
-            outboxEventHandler.handle(event);
+            OutboxEventHandler handler = outboxEventHandlers.stream()
+                    .filter(h -> h.supports(event.getEventType()))
+                    .findFirst()
+                    .orElseThrow(() -> new NoSuchElementException("No OutboxEventHandler supports event type " + event.getEventType()));
+            handler.handle(event);
             event.setStatus(OutboxEventStatus.PUBLISHED);
             event.setPublishedAt(LocalDateTime.now());
             event.setLockedBy(null);

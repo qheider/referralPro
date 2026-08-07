@@ -3,7 +3,6 @@ package com.actpro.referral.outbox;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -16,6 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
@@ -31,11 +31,14 @@ class OutboxDispatchServiceTest {
     @Mock
     private OutboxEventHandler outboxEventHandler;
 
-    @InjectMocks
     private OutboxDispatchService outboxDispatchService;
 
     @BeforeEach
     void setUp() {
+        // OutboxDispatchService now takes List<OutboxEventHandler> (routes to the first
+        // supports()-matching handler) rather than a single injected bean, so it's constructed
+        // manually here instead of via @InjectMocks.
+        outboxDispatchService = new OutboxDispatchService(outboxEventRepository, List.of(outboxEventHandler));
         ReflectionTestUtils.setField(outboxDispatchService, "maxAttempts", 3);
     }
 
@@ -65,6 +68,7 @@ class OutboxDispatchServiceTest {
     @Test
     void shouldMarkEventPublishedOnSuccessfulHandling() throws Exception {
         OutboxEvent event = claimedEvent();
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(true);
 
         outboxDispatchService.dispatchOne(event);
 
@@ -79,6 +83,7 @@ class OutboxDispatchServiceTest {
     void shouldRescheduleWithBackoffOnFailureBelowMaxAttempts() throws Exception {
         OutboxEvent event = claimedEvent();
         event.setAttempts(0);
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(true);
         doThrow(new RuntimeException("downstream unavailable")).when(outboxEventHandler).handle(event);
 
         outboxDispatchService.dispatchOne(event);
@@ -94,6 +99,7 @@ class OutboxDispatchServiceTest {
     void shouldDeadLetterAfterExhaustingMaxAttempts() throws Exception {
         OutboxEvent event = claimedEvent();
         event.setAttempts(2); // this failure will be the 3rd, hitting maxAttempts=3
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(true);
         doThrow(new RuntimeException("still failing")).when(outboxEventHandler).handle(event);
 
         outboxDispatchService.dispatchOne(event);
@@ -106,11 +112,42 @@ class OutboxDispatchServiceTest {
     void shouldTruncateOverlongErrorMessages() throws Exception {
         OutboxEvent event = claimedEvent();
         String longMessage = "x".repeat(2500);
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(true);
         doThrow(new RuntimeException(longMessage)).when(outboxEventHandler).handle(event);
 
         outboxDispatchService.dispatchOne(event);
 
         assertEquals(2000, event.getLastError().length());
+    }
+
+    @Test
+    void shouldRouteToFirstSupportingHandlerWhenMultipleHandlersExist() throws Exception {
+        OutboxEvent event = claimedEvent();
+        OutboxEventHandler nonMatchingHandler = org.mockito.Mockito.mock(OutboxEventHandler.class);
+        when(nonMatchingHandler.supports(anyString())).thenReturn(false);
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(true);
+
+        OutboxDispatchService service = new OutboxDispatchService(outboxEventRepository, List.of(nonMatchingHandler, outboxEventHandler));
+        ReflectionTestUtils.setField(service, "maxAttempts", 3);
+
+        service.dispatchOne(event);
+
+        verify(nonMatchingHandler, never()).handle(any());
+        verify(outboxEventHandler).handle(event);
+        assertEquals(OutboxEventStatus.PUBLISHED, event.getStatus());
+    }
+
+    @Test
+    void shouldApplyFailureWhenNoHandlerSupportsEventType() {
+        OutboxEvent event = claimedEvent();
+        when(outboxEventHandler.supports(event.getEventType())).thenReturn(false);
+
+        outboxDispatchService.dispatchOne(event);
+
+        assertEquals(OutboxEventStatus.PENDING, event.getStatus());
+        assertEquals(1, event.getAttempts());
+        assertTrue(event.getLastError().contains("No OutboxEventHandler supports"));
+        verify(outboxEventRepository).save(event);
     }
 
     private OutboxEvent claimedEvent() {
@@ -119,6 +156,7 @@ class OutboxDispatchServiceTest {
         event.setStatus(OutboxEventStatus.PROCESSING);
         event.setLockedBy("token-1");
         event.setAttempts(0);
+        event.setEventType("some.event");
         return event;
     }
 }

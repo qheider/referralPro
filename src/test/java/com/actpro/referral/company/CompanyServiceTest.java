@@ -10,6 +10,7 @@ import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
 import com.actpro.referral.company.dto.RegisterCompanyResponse;
+import com.actpro.referral.integration.webhook.WebhookPublicIdGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -49,6 +50,9 @@ class CompanyServiceTest {
     @Mock
     private AccountInvitationService accountInvitationService;
 
+    @Mock
+    private WebhookPublicIdGenerator webhookPublicIdGenerator;
+
     @InjectMocks
     private CompanyService companyService;
 
@@ -65,6 +69,7 @@ class CompanyServiceTest {
         });
         when(companyApiKeyService.issueInitialKey(any(Company.class)))
                 .thenReturn(new IssuedApiKeyResponse(1L, "key_abc123", "cmp_live_rawsecret", LocalDateTime.now()));
+        when(webhookPublicIdGenerator.generateUniqueId()).thenReturn("WEBHOOKPUBLICID1");
         when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
         when(dashboardUserRepository.save(any(DashboardUser.class))).thenAnswer(invocation -> {
             DashboardUser user = invocation.getArgument(0);
@@ -90,6 +95,7 @@ class CompanyServiceTest {
         verify(companyIntegrationRepository).save(integrationCaptor.capture());
         assertEquals(CompanyIntegrationStatus.NOT_CONFIGURED, integrationCaptor.getValue().getStatus());
         assertEquals(7L, integrationCaptor.getValue().getCompany().getId());
+        assertEquals("WEBHOOKPUBLICID1", integrationCaptor.getValue().getWebhookPublicId());
 
         ArgumentCaptor<DashboardUser> userCaptor = ArgumentCaptor.forClass(DashboardUser.class);
         verify(dashboardUserRepository).save(userCaptor.capture());

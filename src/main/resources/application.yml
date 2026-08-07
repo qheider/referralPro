@@ -41,6 +41,29 @@ app:
   campaign:
     expiration-enabled: ${CAMPAIGN_EXPIRATION_ENABLED:true}
     expiration-interval-ms: ${CAMPAIGN_EXPIRATION_INTERVAL_MS:60000}
+  integration:
+    # AES-256-GCM key for CredentialEncryptionService (outgoing integration credentials/webhook
+    # signing secrets). The default below is dev-only and insecure - real deployments MUST
+    # override via env var. Generate with: openssl rand -base64 32. Rotating this after
+    # credentials are stored makes existing encrypted rows undecryptable (no key-rotation/
+    # re-encryption tooling exists yet).
+    encryption-key: ${INTEGRATION_ENCRYPTION_KEY:dev-only-insecure-integration-key-change-me}
+    dispatch-enabled: ${INTEGRATION_DISPATCH_ENABLED:true}
+    dispatch-interval-ms: ${INTEGRATION_DISPATCH_INTERVAL_MS:5000}
+    batch-size: ${INTEGRATION_BATCH_SIZE:50}
+    # Fallback only, used by ApiSubmissionService if a submission is ever created before a
+    # CompanyIntegration row exists (defensive - shouldn't happen in practice since Phase 2 seeds
+    # one at registration). CompanyIntegration.maxRetryAttempts (per-company, DB default 5) is the
+    # value actually snapshotted onto each ApiSubmission in the normal case.
+    default-max-retry-attempts: ${INTEGRATION_DEFAULT_MAX_RETRY_ATTEMPTS:5}
+  webhook:
+    # How far a webhook's X-Luup-Timestamp may drift from server time (either direction) before
+    # WebhookSignatureVerifier rejects it as stale - reduces replay risk per the spec.
+    timestamp-tolerance-seconds: ${WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:300}
+    default-max-attempts: ${WEBHOOK_DEFAULT_MAX_ATTEMPTS:5}
+    dispatch-enabled: ${WEBHOOK_DISPATCH_ENABLED:true}
+    dispatch-interval-ms: ${WEBHOOK_DISPATCH_INTERVAL_MS:5000}
+    batch-size: ${WEBHOOK_BATCH_SIZE:50}
 
 logging:
   level:

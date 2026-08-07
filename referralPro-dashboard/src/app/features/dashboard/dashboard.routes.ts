@@ -8,6 +8,11 @@ import { CampaignDetailComponent } from './campaign-detail.component';
 import { CampaignFormComponent } from './campaign-form.component';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardLayoutComponent } from './dashboard-layout.component';
+import { IntegrationSettingsComponent } from './integration-settings.component';
+import { IntegrationSubmissionDetailComponent } from './integration-submission-detail.component';
+import { IntegrationSubmissionsComponent } from './integration-submissions.component';
+import { IntegrationWebhookEventDetailComponent } from './integration-webhook-event-detail.component';
+import { IntegrationWebhookEventsComponent } from './integration-webhook-events.component';
 
 export const dashboardRoutes: Routes = [
   {
@@ -63,6 +68,26 @@ export const dashboardRoutes: Routes = [
       {
         path: 'ambassadors/:ambassadorId/edit',
         component: AmbassadorFormComponent
+      },
+      {
+        path: 'integration',
+        component: IntegrationSettingsComponent
+      },
+      {
+        path: 'integration/submissions',
+        component: IntegrationSubmissionsComponent
+      },
+      {
+        path: 'integration/submissions/:submissionId',
+        component: IntegrationSubmissionDetailComponent
+      },
+      {
+        path: 'integration/webhook-events',
+        component: IntegrationWebhookEventsComponent
+      },
+      {
+        path: 'integration/webhook-events/:webhookEventId',
+        component: IntegrationWebhookEventDetailComponent
       }
     ]
   }

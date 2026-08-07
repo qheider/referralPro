@@ -1,17 +1,27 @@
 package com.actpro.referral.outbox;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
- * Default {@link OutboxEventHandler} for the phase this codebase is in: the outbox is
- * plumbing only, no business capability publishes real events through it yet and no downstream
- * consumer (e.g. Luup) is wired up. Logs and always succeeds so claimed rows still reach
- * PUBLISHED. Replace/override this bean once a real delivery mechanism lands.
+ * Catch-all {@link OutboxEventHandler}: matches any event type ({@link #supports} always returns
+ * {@code true}) and is ordered last ({@link Ordered#LOWEST_PRECEDENCE}) so a more specific handler
+ * (e.g. {@code CreateUserSubmissionOutboxEventHandler} for {@code referral.lead_registered})
+ * always wins first. Logs and always succeeds so claimed rows still reach PUBLISHED - this is the
+ * intended long-term role for any event type published without a real handler wired up yet, not
+ * a placeholder to be deleted.
  */
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE)
 @Slf4j
 public class LoggingOutboxEventHandler implements OutboxEventHandler {
+
+    @Override
+    public boolean supports(String eventType) {
+        return true;
+    }
 
     @Override
     public void handle(OutboxEvent event) {

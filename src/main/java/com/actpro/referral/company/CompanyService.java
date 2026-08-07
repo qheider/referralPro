@@ -11,6 +11,7 @@ import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
 import com.actpro.referral.company.dto.RegisterCompanyResponse;
+import com.actpro.referral.integration.webhook.WebhookPublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +29,7 @@ public class CompanyService {
     private final CompanyApiKeyService companyApiKeyService;
     private final CompanyIntegrationRepository companyIntegrationRepository;
     private final AccountInvitationService accountInvitationService;
+    private final WebhookPublicIdGenerator webhookPublicIdGenerator;
 
     @Transactional
     public RegisterCompanyResponse registerCompany(RegisterCompanyRequest request) {
@@ -97,10 +99,14 @@ public class CompanyService {
         company = companyRepository.save(company);
         log.info("Company registered successfully with ID: {}", company.getId());
 
-        // Initial integration record - full config (API URL, auth, credentials, retry policy,
-        // webhook signing) is added by Phase 6; this only seeds the NOT_CONFIGURED status.
+        // Initial integration record - full outbound config (API URL, auth, credentials, retry
+        // policy) was added by Phase 6; webhookPublicId is generated now (Phase 7) so the
+        // company's inbound webhook URL exists from day one, even before an admin ever visits the
+        // integration settings page - actually configuring webhookSigningSecret/statusMappingJson
+        // still happens later via CompanyIntegrationService.
         CompanyIntegration integration = new CompanyIntegration();
         integration.setCompany(company);
+        integration.setWebhookPublicId(webhookPublicIdGenerator.generateUniqueId());
         integration.setStatus(CompanyIntegrationStatus.NOT_CONFIGURED);
         companyIntegrationRepository.save(integration);
 
