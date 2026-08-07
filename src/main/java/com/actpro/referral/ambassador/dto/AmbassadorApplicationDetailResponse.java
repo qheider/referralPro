@@ -14,6 +14,8 @@ public record AmbassadorApplicationDetailResponse(
         String bio,
         String socialMediaPlatform,
         String socialMediaHandle,
+        Long campaignId,
+        String campaignName,
         ApplicationStatus status,
         String rejectionReason,
         Long reviewedByUserId,

@@ -46,6 +46,7 @@ public class AmbassadorAdminService {
 
     private final AmbassadorProfileRepository ambassadorProfileRepository;
     private final CampaignAmbassadorAssignmentRepository assignmentRepository;
+    private final AmbassadorApplicationRepository ambassadorApplicationRepository;
     private final DashboardUserRepository dashboardUserRepository;
     private final CompanyRepository companyRepository;
     private final ReferralRepository referralRepository;
@@ -53,6 +54,7 @@ public class AmbassadorAdminService {
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserService currentUserService;
     private final AccountInvitationService accountInvitationService;
+    private final CampaignAssignmentService campaignAssignmentService;
 
     @Transactional
     public AmbassadorCreationResponse createAmbassador(CreateAmbassadorRequest request) {
@@ -154,6 +156,18 @@ public class AmbassadorAdminService {
         AmbassadorProfile profile = ambassadorProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new NotFoundException("Ambassador not found"));
         applyStatus(profile, AmbassadorStatus.ACTIVE);
+
+        // If this ambassador was provisioned via a campaign's public join-link application
+        // (Phase 3/4), auto-assign them to that campaign now that they're active, rather than
+        // leaving it as a separate manual step for the admin.
+        ambassadorApplicationRepository.findByResultingAmbassadorProfileId(profile.getId())
+                .filter(application -> application.getCampaign() != null)
+                .ifPresent(application -> {
+                    DashboardUser reviewer = application.getReviewedByUserId() != null
+                            ? dashboardUserRepository.findById(application.getReviewedByUserId()).orElse(null)
+                            : null;
+                    campaignAssignmentService.autoAssignFromApplication(application.getCampaign(), profile, reviewer);
+                });
     }
 
     @Transactional(readOnly = true)

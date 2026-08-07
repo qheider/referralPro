@@ -1,5 +1,6 @@
 package com.actpro.referral.referral;
 
+import com.actpro.referral.ambassador.AssignmentStatus;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -66,4 +67,12 @@ public interface ReferralLinkRepository extends JpaRepository<ReferralLink, Long
     );
 
     boolean existsByPublicToken(String publicToken);
+
+    // Used by CampaignService to cascade a campaign's lifecycle transitions (pause/resume/close/
+    // expire/archive) onto its ambassadors' links. Filtered on assignment status = ACTIVE so a
+    // link whose ambassador was individually removed from the campaign (assignment REMOVED,
+    // link already DISABLED - see CampaignAssignmentService.removeCampaignAssignment) is never
+    // swept up and wrongly re-enabled when the campaign itself resumes.
+    List<ReferralLink> findByCampaignIdAndStatusAndAssignment_Status(
+            Long campaignId, ReferralLinkStatus status, AssignmentStatus assignmentStatus);
 }

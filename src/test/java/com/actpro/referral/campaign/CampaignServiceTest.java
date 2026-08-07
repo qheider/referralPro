@@ -1,5 +1,6 @@
 package com.actpro.referral.campaign;
 
+import com.actpro.referral.ambassador.AssignmentStatus;
 import com.actpro.referral.campaign.dto.CampaignResponse;
 import com.actpro.referral.campaign.dto.CreateCampaignRequest;
 import com.actpro.referral.campaign.dto.PublicCampaignResponse;
@@ -9,6 +10,9 @@ import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.company.CompanyRepository;
 import com.actpro.referral.company.CompanyStatus;
+import com.actpro.referral.referral.ReferralLink;
+import com.actpro.referral.referral.ReferralLinkRepository;
+import com.actpro.referral.referral.ReferralLinkStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -28,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +47,9 @@ class CampaignServiceTest {
 
     @Mock
     private CampaignCodeGenerator campaignCodeGenerator;
+
+    @Mock
+    private ReferralLinkRepository referralLinkRepository;
 
     @InjectMocks
     private CampaignService campaignService;
@@ -220,6 +229,23 @@ class CampaignServiceTest {
     }
 
     @Test
+    void shouldDisableActiveReferralLinksWhenPausing() {
+        Campaign campaign = draftCampaign();
+        campaign.setStatus(CampaignStatus.ACTIVE);
+        when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
+
+        ReferralLink link = new ReferralLink();
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+        when(referralLinkRepository.findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.ACTIVE, AssignmentStatus.ACTIVE))
+                .thenReturn(List.of(link));
+
+        campaignService.pauseCampaign(5L, 10L);
+
+        assertEquals(ReferralLinkStatus.DISABLED, link.getStatus());
+    }
+
+    @Test
     void shouldRejectPausingNonActiveCampaign() {
         Campaign campaign = draftCampaign();
         when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
@@ -237,6 +263,31 @@ class CampaignServiceTest {
         CampaignResponse response = campaignService.resumeCampaign(5L, 10L);
 
         assertEquals(CampaignStatus.ACTIVE, response.status());
+    }
+
+    @Test
+    void shouldReactivateDisabledReferralLinksWhenResuming() {
+        Campaign campaign = draftCampaign();
+        campaign.setStatus(CampaignStatus.PAUSED);
+        campaign.setEndDate(LocalDateTime.now().plusDays(5));
+        when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
+
+        ReferralLink link = new ReferralLink();
+        link.setStatus(ReferralLinkStatus.DISABLED);
+        when(referralLinkRepository.findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.DISABLED, AssignmentStatus.ACTIVE))
+                .thenReturn(List.of(link));
+
+        campaignService.resumeCampaign(5L, 10L);
+
+        assertEquals(ReferralLinkStatus.ACTIVE, link.getStatus());
+        // Only links whose assignment is still ACTIVE are ever queried - a link disabled because
+        // its ambassador was individually removed from the campaign must never come back via a
+        // campaign-level resume.
+        verify(referralLinkRepository).findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.DISABLED, AssignmentStatus.ACTIVE);
+        verify(referralLinkRepository, never()).findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.DISABLED, AssignmentStatus.REMOVED);
     }
 
     @Test
@@ -258,6 +309,23 @@ class CampaignServiceTest {
         CampaignResponse response = campaignService.closeCampaign(5L, 10L);
 
         assertEquals(CampaignStatus.CLOSED, response.status());
+    }
+
+    @Test
+    void shouldDisableActiveReferralLinksWhenClosing() {
+        Campaign campaign = draftCampaign();
+        campaign.setStatus(CampaignStatus.ACTIVE);
+        when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
+
+        ReferralLink link = new ReferralLink();
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+        when(referralLinkRepository.findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.ACTIVE, AssignmentStatus.ACTIVE))
+                .thenReturn(List.of(link));
+
+        campaignService.closeCampaign(5L, 10L);
+
+        assertEquals(ReferralLinkStatus.DISABLED, link.getStatus());
     }
 
     @Test
@@ -314,6 +382,24 @@ class CampaignServiceTest {
 
         assertEquals(1, count);
         assertEquals(CampaignStatus.EXPIRED, campaign.getStatus());
+    }
+
+    @Test
+    void shouldDisableActiveReferralLinksWhenExpiring() {
+        Campaign campaign = draftCampaign();
+        campaign.setStatus(CampaignStatus.ACTIVE);
+        when(campaignRepository.findByStatusInAndEndDateLessThanEqual(any(), any()))
+                .thenReturn(List.of(campaign));
+
+        ReferralLink link = new ReferralLink();
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+        when(referralLinkRepository.findByCampaignIdAndStatusAndAssignment_Status(
+                10L, ReferralLinkStatus.ACTIVE, AssignmentStatus.ACTIVE))
+                .thenReturn(List.of(link));
+
+        campaignService.expireDueCampaigns();
+
+        assertEquals(ReferralLinkStatus.DISABLED, link.getStatus());
     }
 
     // --- resolveJoinLink -------------------------------------------------------------------

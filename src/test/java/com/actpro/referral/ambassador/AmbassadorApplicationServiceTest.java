@@ -10,6 +10,8 @@ import com.actpro.referral.ambassador.dto.SubmitAmbassadorApplicationRequest;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.campaign.Campaign;
+import com.actpro.referral.campaign.CampaignService;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
@@ -52,6 +54,9 @@ class AmbassadorApplicationServiceTest {
 
     @Mock
     private AmbassadorAdminService ambassadorAdminService;
+
+    @Mock
+    private CampaignService campaignService;
 
     @Mock
     private CurrentUserService currentUserService;
@@ -111,7 +116,7 @@ class AmbassadorApplicationServiceTest {
             return application;
         });
 
-        AmbassadorApplicationSubmissionResponse response = ambassadorApplicationService.submitApplication(10L, validRequest());
+        AmbassadorApplicationSubmissionResponse response = ambassadorApplicationService.submitApplication(10L, null, validRequest());
 
         ArgumentCaptor<AmbassadorApplication> captor = ArgumentCaptor.forClass(AmbassadorApplication.class);
         verify(ambassadorApplicationRepository).save(captor.capture());
@@ -127,10 +132,45 @@ class AmbassadorApplicationServiceTest {
     }
 
     @Test
+    void shouldAttachCampaignWhenCampaignCodeResolvesAndEnrollmentIsOpen() {
+        Campaign campaign = new Campaign();
+        campaign.setId(77L);
+        campaign.setCompany(company);
+
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(campaignService.getCampaignForEnrollment("JOIN1234AB", company)).thenReturn(campaign);
+        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(false);
+        when(ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(10L, "sarah@example.com", ApplicationStatus.PENDING))
+                .thenReturn(false);
+        when(ambassadorApplicationRepository.save(any(AmbassadorApplication.class))).thenAnswer(invocation -> {
+            AmbassadorApplication application = invocation.getArgument(0);
+            application.setId(41L);
+            return application;
+        });
+
+        ambassadorApplicationService.submitApplication(10L, "JOIN1234AB", validRequest());
+
+        ArgumentCaptor<AmbassadorApplication> captor = ArgumentCaptor.forClass(AmbassadorApplication.class);
+        verify(ambassadorApplicationRepository).save(captor.capture());
+        assertEquals(campaign, captor.getValue().getCampaign());
+    }
+
+    @Test
+    void shouldRejectSubmissionWhenCampaignEnrollmentNotOpen() {
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(campaignService.getCampaignForEnrollment("JOIN1234AB", company))
+                .thenThrow(new BadRequestException("Ambassador enrollment has closed."));
+
+        assertThrows(BadRequestException.class,
+                () -> ambassadorApplicationService.submitApplication(10L, "JOIN1234AB", validRequest()));
+        verify(ambassadorApplicationRepository, never()).save(any());
+    }
+
+    @Test
     void shouldRejectSubmissionWhenCompanyNotFound() {
         when(companyRepository.findById(99L)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class, () -> ambassadorApplicationService.submitApplication(99L, validRequest()));
+        assertThrows(NotFoundException.class, () -> ambassadorApplicationService.submitApplication(99L, null, validRequest()));
         verify(ambassadorApplicationRepository, never()).save(any());
     }
 
@@ -139,7 +179,7 @@ class AmbassadorApplicationServiceTest {
         company.setStatus(CompanyStatus.SUSPENDED);
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
 
-        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, validRequest()));
+        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, null, validRequest()));
         verify(ambassadorApplicationRepository, never()).save(any());
     }
 
@@ -148,7 +188,7 @@ class AmbassadorApplicationServiceTest {
         when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
         when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(true);
 
-        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, validRequest()));
+        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, null, validRequest()));
         verify(ambassadorApplicationRepository, never()).save(any());
         verify(outboxEventPublisher, never()).publish(any(), any(), any(), any(), any());
     }
@@ -160,7 +200,7 @@ class AmbassadorApplicationServiceTest {
         when(ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(10L, "sarah@example.com", ApplicationStatus.PENDING))
                 .thenReturn(true);
 
-        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, validRequest()));
+        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, null, validRequest()));
         verify(ambassadorApplicationRepository, never()).save(any());
     }
 

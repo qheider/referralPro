@@ -27,9 +27,11 @@ public class AmbassadorApplicationController {
     @PostMapping("/apply")
     public ResponseEntity<ApiResponse<AmbassadorApplicationSubmissionResponse>> apply(
             @RequestParam Long companyId,
+            @RequestParam(required = false) String campaignCode,
             @Valid @RequestBody SubmitAmbassadorApplicationRequest request
     ) {
-        AmbassadorApplicationSubmissionResponse response = ambassadorApplicationService.submitApplication(companyId, request);
+        AmbassadorApplicationSubmissionResponse response =
+                ambassadorApplicationService.submitApplication(companyId, campaignCode, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Application submitted successfully", response));
     }

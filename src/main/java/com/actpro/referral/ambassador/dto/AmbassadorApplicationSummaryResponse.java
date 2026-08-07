@@ -10,6 +10,8 @@ public record AmbassadorApplicationSummaryResponse(
         String lastName,
         String email,
         String displayName,
+        Long campaignId,
+        String campaignName,
         ApplicationStatus status,
         LocalDateTime submittedAt,
         LocalDateTime reviewedAt

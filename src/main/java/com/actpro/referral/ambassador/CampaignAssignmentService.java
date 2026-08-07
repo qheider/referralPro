@@ -57,44 +57,69 @@ public class CampaignAssignmentService {
                     .orElseThrow(() -> new NotFoundException("Ambassador not found"));
 
             validateAmbassador(profile);
-
-            CampaignAmbassadorAssignment assignment = assignmentRepository
-                    .findByCampaignIdAndAmbassadorUserIdAndCompanyId(campaign.getId(), profile.getUser().getId(), companyId)
-                    .orElseGet(CampaignAmbassadorAssignment::new);
-
-            if (assignment.getId() != null && assignment.getStatus() == AssignmentStatus.ACTIVE) {
-                throw new BadRequestException("Ambassador is already assigned to this campaign");
-            }
-
-            assignment.setCompany(campaign.getCompany());
-            assignment.setCampaign(campaign);
-            assignment.setAmbassadorUser(profile.getUser());
-            assignment.setAssignedBy(assignedBy);
-            assignment.setAssignedAt(java.time.LocalDateTime.now());
-            assignment.setStatus(AssignmentStatus.ACTIVE);
-            assignment = assignmentRepository.save(assignment);
-
-            ReferralLink referralLink = referralLinkRepository
-                    .findByCampaignIdAndAmbassadorUserIdAndCompanyId(campaign.getId(), profile.getUser().getId(), companyId)
-                    .orElseGet(ReferralLink::new);
-
-            if (referralLink.getId() == null) {
-                referralLink.setPublicToken(referralTokenGenerator.generateUniqueToken());
-                referralLink.setClickCount(0L);
-            }
-
-            referralLink.setCompany(campaign.getCompany());
-            referralLink.setCampaign(campaign);
-            referralLink.setAmbassadorUser(profile.getUser());
-            referralLink.setAssignment(assignment);
-            referralLink.setDestinationUrl(campaign.getLandingPageUrl());
-            referralLink.setStatus(ReferralLinkStatus.ACTIVE);
-            referralLink = referralLinkRepository.save(referralLink);
-
-            responses.add(toAssignmentResponse(assignment, profile, referralLink));
+            responses.add(createAssignmentAndLink(campaign, profile, assignedBy));
         }
 
         return responses;
+    }
+
+    /**
+     * Auto-assigns a newly activated ambassador to the campaign they applied through (see
+     * AmbassadorApplication.campaign), called by AmbassadorAdminService.activateInvitedAmbassador
+     * once the profile is flipped ACTIVE. No CurrentUserService dependency - this runs from the
+     * public, unauthenticated accept-invitation flow, so there is no admin principal in context;
+     * {@code assignedBy} is the admin who originally approved the application, if known. Skips
+     * validateAmbassador's active-ambassador precondition deliberately: it exists to stop
+     * assigning an inactive *existing* ambassador via the bulk admin flow above, not to gate a
+     * brand-new account's very first (and only possible) assignment.
+     */
+    @Transactional
+    public void autoAssignFromApplication(Campaign campaign, AmbassadorProfile profile, DashboardUser assignedBy) {
+        createAssignmentAndLink(campaign, profile, assignedBy);
+    }
+
+    /**
+     * Core assignment + referral-link creation, shared by the admin-initiated bulk assignAmbassadors
+     * flow and autoAssignFromApplication. Callers own their own preconditions (active-ambassador
+     * check, company/campaign resolution) - this only knows how to create the two records.
+     */
+    private CampaignAssignmentResponse createAssignmentAndLink(Campaign campaign, AmbassadorProfile profile, DashboardUser assignedBy) {
+        Long companyId = campaign.getCompany().getId();
+
+        CampaignAmbassadorAssignment assignment = assignmentRepository
+                .findByCampaignIdAndAmbassadorUserIdAndCompanyId(campaign.getId(), profile.getUser().getId(), companyId)
+                .orElseGet(CampaignAmbassadorAssignment::new);
+
+        if (assignment.getId() != null && assignment.getStatus() == AssignmentStatus.ACTIVE) {
+            throw new BadRequestException("Ambassador is already assigned to this campaign");
+        }
+
+        assignment.setCompany(campaign.getCompany());
+        assignment.setCampaign(campaign);
+        assignment.setAmbassadorUser(profile.getUser());
+        assignment.setAssignedBy(assignedBy);
+        assignment.setAssignedAt(java.time.LocalDateTime.now());
+        assignment.setStatus(AssignmentStatus.ACTIVE);
+        assignment = assignmentRepository.save(assignment);
+
+        ReferralLink referralLink = referralLinkRepository
+                .findByCampaignIdAndAmbassadorUserIdAndCompanyId(campaign.getId(), profile.getUser().getId(), companyId)
+                .orElseGet(ReferralLink::new);
+
+        if (referralLink.getId() == null) {
+            referralLink.setPublicToken(referralTokenGenerator.generateUniqueToken());
+            referralLink.setClickCount(0L);
+        }
+
+        referralLink.setCompany(campaign.getCompany());
+        referralLink.setCampaign(campaign);
+        referralLink.setAmbassadorUser(profile.getUser());
+        referralLink.setAssignment(assignment);
+        referralLink.setDestinationUrl(campaign.getLandingPageUrl());
+        referralLink.setStatus(ReferralLinkStatus.ACTIVE);
+        referralLink = referralLinkRepository.save(referralLink);
+
+        return toAssignmentResponse(assignment, profile, referralLink);
     }
 
     @Transactional(readOnly = true)

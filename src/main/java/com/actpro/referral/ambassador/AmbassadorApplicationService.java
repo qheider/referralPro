@@ -3,6 +3,8 @@ package com.actpro.referral.ambassador;
 import com.actpro.referral.ambassador.AmbassadorAdminService.AmbassadorProvisioningResult;
 import com.actpro.referral.ambassador.dto.*;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.campaign.Campaign;
+import com.actpro.referral.campaign.CampaignService;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
@@ -32,6 +34,7 @@ public class AmbassadorApplicationService {
     private final CompanyRepository companyRepository;
     private final DashboardUserRepository dashboardUserRepository;
     private final AmbassadorAdminService ambassadorAdminService;
+    private final CampaignService campaignService;
     private final CurrentUserService currentUserService;
     private final OutboxEventPublisher outboxEventPublisher;
 
@@ -40,14 +43,26 @@ public class AmbassadorApplicationService {
      * in this codebase, companyId is a deliberate, untrusted, client-supplied value rather than
      * something checked against CurrentUserService. Don't "fix" this into requiring auth: an
      * applicant has no account until an admin approves them.
+     * <p>
+     * {@code campaignCode} is optional: present when the applicant came through a campaign's
+     * public join link (Phase 3), null for the company-wide admin-invited path. When present it
+     * is hard-validated (enrollment must actually be open) via CampaignService.getCampaignForEnrollment
+     * and stored on the application so the resulting ambassador is auto-assigned to that campaign
+     * once they accept their invitation (see AmbassadorAdminService.activateInvitedAmbassador).
      */
     @Transactional
-    public AmbassadorApplicationSubmissionResponse submitApplication(Long companyId, SubmitAmbassadorApplicationRequest request) {
+    public AmbassadorApplicationSubmissionResponse submitApplication(
+            Long companyId, String campaignCode, SubmitAmbassadorApplicationRequest request) {
         Company company = companyRepository.findById(companyId)
                 .orElseThrow(() -> new NotFoundException("Company not found"));
 
         if (company.getStatus() != CompanyStatus.ACTIVE) {
             throw new BadRequestException("Company is not accepting ambassador applications");
+        }
+
+        Campaign campaign = null;
+        if (campaignCode != null && !campaignCode.isBlank()) {
+            campaign = campaignService.getCampaignForEnrollment(campaignCode, company);
         }
 
         String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
@@ -62,6 +77,7 @@ public class AmbassadorApplicationService {
 
         AmbassadorApplication application = new AmbassadorApplication();
         application.setCompany(company);
+        application.setCampaign(campaign);
         application.setFirstName(request.firstName().trim());
         application.setLastName(request.lastName().trim());
         application.setEmail(normalizedEmail);
@@ -196,6 +212,8 @@ public class AmbassadorApplicationService {
                 application.getLastName(),
                 application.getEmail(),
                 application.getDisplayName(),
+                application.getCampaign() != null ? application.getCampaign().getId() : null,
+                application.getCampaign() != null ? application.getCampaign().getName() : null,
                 application.getStatus(),
                 application.getCreatedAt(),
                 application.getReviewedAt()
@@ -213,6 +231,8 @@ public class AmbassadorApplicationService {
                 application.getBio(),
                 application.getSocialMediaPlatform(),
                 application.getSocialMediaHandle(),
+                application.getCampaign() != null ? application.getCampaign().getId() : null,
+                application.getCampaign() != null ? application.getCampaign().getName() : null,
                 application.getStatus(),
                 application.getRejectionReason(),
                 application.getReviewedByUserId(),

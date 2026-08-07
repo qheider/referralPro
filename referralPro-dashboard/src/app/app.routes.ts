@@ -4,6 +4,7 @@ import { authGuard } from './core/guards/auth.guard';
 import { companyAdminGuard } from './core/guards/company-admin.guard';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
+import { CampaignJoinComponent } from './features/public/campaign-join.component';
 
 export const routes: Routes = [
   {
@@ -13,6 +14,11 @@ export const routes: Routes = [
   {
     path: 'register',
     component: RegisterComponent
+  },
+  {
+    // Public campaign join link (Phase 3): /join/{campaignCode}
+    path: 'join/:campaignCode',
+    component: CampaignJoinComponent
   },
   {
     path: 'dashboard',

@@ -74,6 +74,12 @@ class AmbassadorAdminServiceTest {
     @Mock
     private AccountInvitationService accountInvitationService;
 
+    @Mock
+    private AmbassadorApplicationRepository ambassadorApplicationRepository;
+
+    @Mock
+    private CampaignAssignmentService campaignAssignmentService;
+
     @InjectMocks
     private AmbassadorAdminService ambassadorAdminService;
 
@@ -235,6 +241,72 @@ class AmbassadorAdminServiceTest {
         ambassadorAdminService.activateInvitedAmbassador(21L);
 
         assertEquals(AmbassadorStatus.ACTIVE, profile.getStatus());
+    }
+
+    @Test
+    void shouldAutoAssignToCampaignWhenActivatedFromCampaignScopedApplication() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+        user.setStatus(UserStatus.PENDING);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.INVITED);
+
+        com.actpro.referral.campaign.Campaign campaign = new com.actpro.referral.campaign.Campaign();
+        campaign.setId(77L);
+        campaign.setCompany(company);
+
+        AmbassadorApplication application = new AmbassadorApplication();
+        application.setId(41L);
+        application.setCompany(company);
+        application.setCampaign(campaign);
+        application.setReviewedByUserId(5L);
+
+        DashboardUser reviewer = new DashboardUser();
+        reviewer.setId(5L);
+
+        when(ambassadorProfileRepository.findByUserId(21L)).thenReturn(Optional.of(profile));
+        when(referralLinkRepository.findByAmbassadorUserIdAndCompanyIdAndStatus(21L, 10L, ReferralLinkStatus.DISABLED))
+                .thenReturn(List.of());
+        when(ambassadorApplicationRepository.findByResultingAmbassadorProfileId(31L)).thenReturn(Optional.of(application));
+        when(dashboardUserRepository.findById(5L)).thenReturn(Optional.of(reviewer));
+
+        ambassadorAdminService.activateInvitedAmbassador(21L);
+
+        assertEquals(AmbassadorStatus.ACTIVE, profile.getStatus());
+        verify(campaignAssignmentService).autoAssignFromApplication(campaign, profile, reviewer);
+    }
+
+    @Test
+    void shouldNotAutoAssignWhenActivatedApplicationHasNoCampaign() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+        user.setStatus(UserStatus.PENDING);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.INVITED);
+
+        AmbassadorApplication application = new AmbassadorApplication();
+        application.setId(41L);
+        application.setCompany(company);
+
+        when(ambassadorProfileRepository.findByUserId(21L)).thenReturn(Optional.of(profile));
+        when(referralLinkRepository.findByAmbassadorUserIdAndCompanyIdAndStatus(21L, 10L, ReferralLinkStatus.DISABLED))
+                .thenReturn(List.of());
+        when(ambassadorApplicationRepository.findByResultingAmbassadorProfileId(31L)).thenReturn(Optional.of(application));
+
+        ambassadorAdminService.activateInvitedAmbassador(21L);
+
+        assertEquals(AmbassadorStatus.ACTIVE, profile.getStatus());
+        verify(campaignAssignmentService, never()).autoAssignFromApplication(any(), any(), any());
     }
 
     @Test

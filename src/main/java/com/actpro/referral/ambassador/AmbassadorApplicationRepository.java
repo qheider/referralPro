@@ -16,6 +16,11 @@ public interface AmbassadorApplicationRepository extends JpaRepository<Ambassado
 
     boolean existsByCompanyIdAndEmailAndStatus(Long companyId, String email, ApplicationStatus status);
 
+    // Used at invitation-acceptance time to find the campaign (if any) an approved application's
+    // resulting ambassador should be auto-assigned to - see
+    // AmbassadorAdminService.activateInvitedAmbassador.
+    Optional<AmbassadorApplication> findByResultingAmbassadorProfileId(Long resultingAmbassadorProfileId);
+
     @Query(
             value = """
                     SELECT a

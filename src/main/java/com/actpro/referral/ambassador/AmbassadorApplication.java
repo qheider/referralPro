@@ -1,5 +1,6 @@
 package com.actpro.referral.ambassador;
 
+import com.actpro.referral.campaign.Campaign;
 import com.actpro.referral.common.BaseEntity;
 import com.actpro.referral.company.Company;
 import jakarta.persistence.*;
@@ -19,6 +20,14 @@ public class AmbassadorApplication extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "company_id", nullable = false)
     private Company company;
+
+    // Set when the applicant came through a campaign's public join link (Phase 3) rather than
+    // the company-wide admin-invited path. Drives auto-assignment to this campaign once the
+    // resulting ambassador accepts their invitation - see
+    // AmbassadorAdminService.activateInvitedAmbassador.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_id")
+    private Campaign campaign;
 
     @Column(name = "first_name", nullable = false, length = 100)
     private String firstName;
