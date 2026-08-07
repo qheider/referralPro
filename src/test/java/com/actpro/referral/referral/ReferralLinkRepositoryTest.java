@@ -64,10 +64,13 @@ class ReferralLinkRepositoryTest {
 
         campaign = new Campaign();
         campaign.setCompany(company);
+        campaign.setCampaignCode("CODE1234AB");
         campaign.setName("Summer promo");
         campaign.setLandingPageUrl("https://campaign.example.com");
         campaign.setStartDate(LocalDateTime.now().minusDays(1));
         campaign.setEndDate(LocalDateTime.now().plusDays(30));
+        campaign.setAmbassadorEnrollmentStart(LocalDateTime.now().minusDays(1));
+        campaign.setAmbassadorEnrollmentEnd(LocalDateTime.now().plusDays(10));
         campaign.setRewardType(RewardType.DISCOUNT_PERCENTAGE);
         campaign.setReferrerRewardValue(BigDecimal.TEN);
         campaign.setRefereeRewardValue(BigDecimal.TEN);

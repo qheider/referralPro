@@ -38,6 +38,9 @@ app:
     dispatch-interval-ms: ${OUTBOX_DISPATCH_INTERVAL_MS:5000}
     batch-size: ${OUTBOX_BATCH_SIZE:50}
     max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+  campaign:
+    expiration-enabled: ${CAMPAIGN_EXPIRATION_ENABLED:true}
+    expiration-interval-ms: ${CAMPAIGN_EXPIRATION_INTERVAL_MS:60000}
 
 logging:
   level:

@@ -40,6 +40,14 @@ public class ConversionService {
                 .findByReferralCodeAndCompanyId(request.referralCode(), company.getId())
                 .orElseThrow(() -> new NotFoundException("Referral not found"));
 
+        // Ambassador-driven referrals (created via ReferralLeadService) have no PlatformUser
+        // referrer - only the ambassador (tracked via Referral.ambassadorUser). Converting those
+        // isn't built yet (phases 9/10: referral workflow + reward rules); fail clearly here
+        // instead of NPEing on the referrerUser dereferences below.
+        if (referral.getReferrerUser() == null) {
+            throw new BadRequestException("Ambassador-driven referrals cannot be converted yet");
+        }
+
         Campaign campaign = referral.getCampaign();
 
         // Validate campaign is active

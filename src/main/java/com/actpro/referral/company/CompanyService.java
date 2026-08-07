@@ -1,8 +1,12 @@
 package com.actpro.referral.company;
 
+import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
+import com.actpro.referral.auth.UserStatus;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
@@ -22,6 +26,8 @@ public class CompanyService {
     private final DashboardUserRepository dashboardUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final CompanyApiKeyService companyApiKeyService;
+    private final CompanyIntegrationRepository companyIntegrationRepository;
+    private final AccountInvitationService accountInvitationService;
 
     @Transactional
     public RegisterCompanyResponse registerCompany(RegisterCompanyRequest request) {
@@ -91,24 +97,38 @@ public class CompanyService {
         company = companyRepository.save(company);
         log.info("Company registered successfully with ID: {}", company.getId());
 
+        // Initial integration record - full config (API URL, auth, credentials, retry policy,
+        // webhook signing) is added by Phase 6; this only seeds the NOT_CONFIGURED status.
+        CompanyIntegration integration = new CompanyIntegration();
+        integration.setCompany(company);
+        integration.setStatus(CompanyIntegrationStatus.NOT_CONFIGURED);
+        companyIntegrationRepository.save(integration);
+
         IssuedApiKeyResponse apiKey = companyApiKeyService.issueInitialKey(company);
 
-        // Create admin dashboard user
+        // Create admin dashboard user - starts PENDING (login blocked, see AuthService/
+        // JwtAuthenticationFilter) until the email-verification invitation below is redeemed.
         DashboardUser adminUser = new DashboardUser();
         adminUser.setCompany(company);
         adminUser.setUsername(request.adminWorkEmail());
         adminUser.setPassword(passwordEncoder.encode(request.password()));
         adminUser.setRole(UserRole.fromValue(request.adminRole()));
         adminUser.setFirstName(request.adminFullName());
-        
-        dashboardUserRepository.save(adminUser);
+        adminUser.setStatus(UserStatus.PENDING);
+
+        adminUser = dashboardUserRepository.save(adminUser);
         log.info("Admin user created for company: {}", company.getId());
+
+        IssuedInvitationResponse verification = accountInvitationService.issueInvitation(
+                adminUser, InvitationPurpose.COMPANY_EMAIL_VERIFICATION);
 
         return new RegisterCompanyResponse(
                 company.getId(),
                 company.getName(),
                 apiKey.apiKey(),
-                request.adminWorkEmail()
+                request.adminWorkEmail(),
+                verification.token(),
+                verification.expiresAt()
         );
     }
 }

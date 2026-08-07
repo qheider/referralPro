@@ -21,6 +21,12 @@ public record CreateCampaignRequest(
         @NotNull(message = "End date is required")
         LocalDateTime endDate,
 
+        @NotNull(message = "Ambassador enrollment start date is required")
+        LocalDateTime ambassadorEnrollmentStart,
+
+        @NotNull(message = "Ambassador enrollment end date is required")
+        LocalDateTime ambassadorEnrollmentEnd,
+
         @NotNull(message = "Reward type is required")
         RewardType rewardType,
 

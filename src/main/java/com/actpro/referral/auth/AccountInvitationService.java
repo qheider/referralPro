@@ -74,6 +74,27 @@ public class AccountInvitationService {
         return new AcceptInvitationResponse(user.getId(), user.getUsername(), user.getRole().name());
     }
 
+    /**
+     * Redeems a COMPANY_EMAIL_VERIFICATION token: activates the account without touching its
+     * password, unlike {@link #acceptInvitation}, since the admin already set a password at
+     * registration and is only confirming ownership of the email address.
+     */
+    @Transactional
+    public DashboardUser verifyEmail(String rawToken) {
+        AccountInvitation invitation = accountInvitationRepository.findByTokenHash(hash(rawToken))
+                .orElseThrow(() -> new BadRequestException("Invalid or expired verification link"));
+
+        if (invitation.getPurpose() != InvitationPurpose.COMPANY_EMAIL_VERIFICATION || !invitation.isUsable()) {
+            throw new BadRequestException("Invalid or expired verification link");
+        }
+
+        DashboardUser user = invitation.getDashboardUser();
+        user.setStatus(UserStatus.ACTIVE);
+        invitation.setAcceptedAt(LocalDateTime.now());
+
+        return user;
+    }
+
     private String hash(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

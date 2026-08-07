@@ -121,6 +121,11 @@ export class DashboardLayoutComponent implements OnInit {
       return;
     }
 
+    if (url.includes('/dashboard/campaigns/new')) {
+      this.currentPageTitle = 'New campaign';
+      return;
+    }
+
     if (url.includes('/dashboard/campaigns/')) {
       this.currentPageTitle = 'Campaign detail';
       return;

@@ -4,7 +4,10 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin, finalize } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
+import { CampaignService } from '../../core/services/campaign.service';
 import { DashboardService } from '../../core/services/dashboard.service';
+import { CampaignResponse } from '../../shared/models/campaign.model';
 import {
   CampaignStatsResponse,
   ConversionFunnelResponse,
@@ -13,6 +16,8 @@ import {
   TopReferrersResponse
 } from '../../shared/models/dashboard.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
+
+type CampaignAction = 'publish' | 'pause' | 'resume' | 'close' | 'archive';
 
 @Component({
   selector: 'app-campaign-detail',
@@ -23,6 +28,11 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 })
 export class CampaignDetailComponent implements OnInit {
   campaignId: number | null = null;
+  campaign: CampaignResponse | null = null;
+  campaignError = '';
+  isTransitioning = false;
+  joinLinkCopied = false;
+
   stats: CampaignStatsResponse | null = null;
   funnel: ConversionFunnelResponse | null = null;
   topReferrers: TopReferrersResponse | null = null;
@@ -97,6 +107,8 @@ export class CampaignDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private dashboardService: DashboardService,
+    private campaignService: CampaignService,
+    private authService: AuthService,
     private ngZone: NgZone,
     private cdr: ChangeDetectorRef
   ) {}
@@ -110,7 +122,113 @@ export class CampaignDetailComponent implements OnInit {
     }
 
     this.campaignId = campaignId;
+    this.loadCampaign(campaignId);
     this.loadCampaignDetail(campaignId);
+  }
+
+  get canPublish(): boolean {
+    return this.campaign?.status === 'DRAFT';
+  }
+
+  get canPause(): boolean {
+    return this.campaign?.status === 'ACTIVE';
+  }
+
+  get canResume(): boolean {
+    return this.campaign?.status === 'PAUSED';
+  }
+
+  get canClose(): boolean {
+    return this.campaign?.status === 'SCHEDULED' || this.campaign?.status === 'ACTIVE' || this.campaign?.status === 'PAUSED';
+  }
+
+  get canArchive(): boolean {
+    return this.campaign?.status === 'EXPIRED' || this.campaign?.status === 'CLOSED';
+  }
+
+  copyJoinLink(): void {
+    if (!this.campaign) {
+      return;
+    }
+    navigator.clipboard.writeText(this.campaign.joinLink).then(() => {
+      this.joinLinkCopied = true;
+      setTimeout(() => {
+        this.joinLinkCopied = false;
+        this.cdr.markForCheck();
+      }, 2000);
+      this.cdr.markForCheck();
+    });
+  }
+
+  publish(): void {
+    this.runTransition('publish');
+  }
+
+  pause(): void {
+    this.runTransition('pause');
+  }
+
+  resume(): void {
+    this.runTransition('resume');
+  }
+
+  close(): void {
+    this.runTransition('close');
+  }
+
+  archive(): void {
+    this.runTransition('archive');
+  }
+
+  private runTransition(action: CampaignAction): void {
+    const companyId = this.authService.getCurrentUserValue()?.companyId;
+    if (!companyId || !this.campaignId) {
+      this.campaignError = 'Unable to determine the current company. Please sign in again.';
+      return;
+    }
+
+    this.isTransitioning = true;
+    this.campaignError = '';
+
+    const request$ =
+      action === 'publish' ? this.campaignService.publishCampaign(companyId, this.campaignId) :
+      action === 'pause' ? this.campaignService.pauseCampaign(companyId, this.campaignId) :
+      action === 'resume' ? this.campaignService.resumeCampaign(companyId, this.campaignId) :
+      action === 'close' ? this.campaignService.closeCampaign(companyId, this.campaignId) :
+      this.campaignService.archiveCampaign(companyId, this.campaignId);
+
+    request$
+      .pipe(finalize(() => {
+        this.isTransitioning = false;
+        this.cdr.markForCheck();
+      }))
+      .subscribe({
+        next: campaign => {
+          this.campaign = campaign;
+        },
+        error: (error: unknown) => {
+          this.campaignError = extractApiErrorMessage(error, `Unable to ${action} campaign.`);
+        }
+      });
+  }
+
+  private loadCampaign(campaignId: number): void {
+    const companyId = this.authService.getCurrentUserValue()?.companyId;
+    if (!companyId) {
+      this.campaignError = 'Unable to determine the current company. Please sign in again.';
+      return;
+    }
+
+    this.campaignService.getCampaign(companyId, campaignId).subscribe({
+      next: campaign => {
+        this.campaign = campaign;
+        this.cdr.markForCheck();
+      },
+      error: (error: unknown) => {
+        this.campaignError = extractApiErrorMessage(error, 'Unable to load campaign settings.');
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   get pageTitle(): string {

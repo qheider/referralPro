@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { AmbassadorPortalService } from '../../core/services/ambassador-portal.service';
 import { AmbassadorProfile } from '../../shared/models/ambassador-portal.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
@@ -67,21 +67,23 @@ export class AmbassadorProfileComponent implements OnInit {
   profile: AmbassadorProfile | null = null;
   successMessage = '';
   errorMessage = '';
-  profileForm = this.formBuilder.group({
-    firstName: [''],
-    lastName: [''],
-    displayName: [''],
-    phone: [''],
-    bio: [''],
-    socialMediaPlatform: [''],
-    socialMediaHandle: [''],
-    profileImageUrl: ['']
-  });
+  profileForm: FormGroup;
 
   constructor(
     private formBuilder: FormBuilder,
     private ambassadorPortalService: AmbassadorPortalService
-  ) {}
+  ) {
+    this.profileForm = this.formBuilder.group({
+      firstName: [''],
+      lastName: [''],
+      displayName: [''],
+      phone: [''],
+      bio: [''],
+      socialMediaPlatform: [''],
+      socialMediaHandle: [''],
+      profileImageUrl: ['']
+    });
+  }
 
   ngOnInit(): void {
     this.ambassadorPortalService.getProfile().subscribe({

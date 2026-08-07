@@ -23,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(CampaignController.class)
@@ -66,6 +67,38 @@ class CampaignControllerSecurityTest {
                 .andExpect(status().isForbidden());
 
         verifyNoInteractions(currentUserService, campaignService);
+    }
+
+    @Test
+    @WithMockUser(roles = "COMPANY_ADMIN")
+    void shouldUseAuthenticatedCompanyScopeForPublish() throws Exception {
+        doNothing().when(currentUserService).assertCurrentCompanyAccess(123L);
+        when(currentUserService.getCurrentCompanyId()).thenReturn(99L);
+        when(campaignService.publishCampaign(eq(99L), eq(7L))).thenReturn(sampleResponse());
+
+        mockMvc.perform(post("/api/companies/123/campaigns/7/publish"))
+                .andExpect(status().isOk());
+
+        verify(campaignService).publishCampaign(eq(99L), eq(7L));
+    }
+
+    @Test
+    @WithMockUser(roles = "AMBASSADOR")
+    void shouldBlockAmbassadorsFromPublishing() throws Exception {
+        mockMvc.perform(post("/api/companies/123/campaigns/7/publish"))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(currentUserService, campaignService);
+    }
+
+    private CampaignResponse sampleResponse() {
+        return new CampaignResponse(
+                7L, "CODE1234AB", "https://app.referralpro.com/join/CODE1234AB",
+                "Referral Program", "desc", "https://acme.example.com/promo",
+                null, null, null, null,
+                null, null, null, null,
+                CampaignStatus.SCHEDULED, null
+        );
     }
 
     @TestConfiguration

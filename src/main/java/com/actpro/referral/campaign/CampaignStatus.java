@@ -6,5 +6,6 @@ public enum CampaignStatus {
     ACTIVE,
     PAUSED,
     EXPIRED,
-    CANCELLED
+    CLOSED,
+    ARCHIVED
 }

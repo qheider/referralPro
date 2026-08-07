@@ -16,19 +16,13 @@ import org.springframework.web.servlet.view.RedirectView;
 
 import java.time.Duration;
 import java.util.UUID;
-import java.util.regex.Pattern;
 
 @Tag(name = "Referral Redirect", description = "Public referral link redirect")
 @Controller
 @RequiredArgsConstructor
 public class ReferralRedirectController {
 
-    private static final String ATTRIBUTION_COOKIE_NAME = "rp_attr_session";
     private static final Duration ATTRIBUTION_COOKIE_MAX_AGE = Duration.ofDays(30);
-    // Matches the values this controller itself generates (UUID) - anything else from the
-    // client is untrusted and is not reused as-is (also enforces the ReferralClick.sessionId
-    // VARCHAR(100) column limit so an oversized cookie can't fail the insert).
-    private static final Pattern VALID_SESSION_ID = Pattern.compile("^[A-Za-z0-9-]{1,100}$");
 
     private final ReferralClickService referralClickService;
 
@@ -65,14 +59,14 @@ public class ReferralRedirectController {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if (ATTRIBUTION_COOKIE_NAME.equals(cookie.getName()) && VALID_SESSION_ID.matcher(cookie.getValue()).matches()) {
+                if (AttributionSession.COOKIE_NAME.equals(cookie.getName()) && AttributionSession.isValid(cookie.getValue())) {
                     return cookie.getValue();
                 }
             }
         }
 
         String sessionId = UUID.randomUUID().toString();
-        ResponseCookie cookie = ResponseCookie.from(ATTRIBUTION_COOKIE_NAME, sessionId)
+        ResponseCookie cookie = ResponseCookie.from(AttributionSession.COOKIE_NAME, sessionId)
                 .httpOnly(true)
                 .path("/")
                 .maxAge(ATTRIBUTION_COOKIE_MAX_AGE)

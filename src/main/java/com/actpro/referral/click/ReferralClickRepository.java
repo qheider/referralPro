@@ -19,4 +19,8 @@ public interface ReferralClickRepository extends JpaRepository<ReferralClick, Lo
             LocalDateTime start,
             LocalDateTime end
     );
+
+    // Backfill target when a lead is submitted: the click(s) that led up to it in the same
+    // session, recorded before any Referral existed for this link.
+    List<ReferralClick> findByReferralLinkIdAndSessionIdAndReferralIsNull(Long referralLinkId, String sessionId);
 }

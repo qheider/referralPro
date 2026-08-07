@@ -28,8 +28,11 @@ public class Referral extends BaseEntity {
     @JoinColumn(name = "campaign_id", nullable = false)
     private Campaign campaign;
 
+    // Nullable: an ambassador-driven referral (see ReferralLeadService) has no PlatformUser
+    // referrer - the referrer is the ambassador, tracked separately via ambassadorUser below.
+    // Only the legacy direct-API flow (ReferralService.generateReferral) always sets this.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "referrer_user_id", nullable = false)
+    @JoinColumn(name = "referrer_user_id")
     private PlatformUser referrerUser;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -39,6 +42,12 @@ public class Referral extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "referral_link_id")
     private ReferralLink referralLinkEntity;
+
+    // Correlates this referral back to the browsing session that clicked the referral link
+    // (see AttributionSession/ReferralRedirectController's rp_attr_session cookie). Null for
+    // legacy direct-API referrals, which have no click/session concept.
+    @Column(name = "attribution_session_id", length = 100)
+    private String attributionSessionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "customer_user_id")

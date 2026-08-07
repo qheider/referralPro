@@ -62,16 +62,52 @@ public class AmbassadorAdminService {
             throw new BadRequestException("Company must be active to create ambassadors");
         }
 
-        if (dashboardUserRepository.existsByUsername(request.email())) {
+        // Admin-direct creation has no bio field on CreateAmbassadorRequest, so it passes null -
+        // AmbassadorApplicationService.approveApplication is the other caller of this helper and
+        // passes the applicant's submitted bio through instead.
+        AmbassadorProvisioningResult result = provisionAmbassadorAccount(
+                company,
+                request.email(),
+                request.firstName(),
+                request.lastName(),
+                request.displayName(),
+                request.phone(),
+                null,
+                request.socialMediaPlatform(),
+                request.socialMediaHandle()
+        );
+
+        return new AmbassadorCreationResponse(toSummary(result.profile()), result.invitation().token(), result.invitation().expiresAt());
+    }
+
+    /**
+     * Creates the DashboardUser + AmbassadorProfile pair and issues the onboarding invitation -
+     * the reusable core of ambassador account creation, shared by the admin-direct createAmbassador
+     * path and AmbassadorApplicationService.approveApplication. Callers own their own preconditions
+     * (e.g. company-active checks) - this only knows how to provision one account.
+     */
+    AmbassadorProvisioningResult provisionAmbassadorAccount(
+            Company company,
+            String email,
+            String firstName,
+            String lastName,
+            String displayName,
+            String phone,
+            String bio,
+            String socialMediaPlatform,
+            String socialMediaHandle
+    ) {
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        if (dashboardUserRepository.existsByUsername(normalizedEmail)) {
             throw new BadRequestException("Email is already in use");
         }
 
         DashboardUser user = new DashboardUser();
         user.setCompany(company);
-        user.setUsername(request.email().trim().toLowerCase(Locale.ROOT));
+        user.setUsername(normalizedEmail);
         user.setPassword(passwordEncoder.encode(generatePlaceholderPassword()));
-        user.setFirstName(request.firstName().trim());
-        user.setLastName(request.lastName().trim());
+        user.setFirstName(firstName.trim());
+        user.setLastName(lastName.trim());
         user.setRole(UserRole.AMBASSADOR);
         user.setStatus(UserStatus.PENDING);
         user = dashboardUserRepository.save(user);
@@ -79,17 +115,21 @@ public class AmbassadorAdminService {
         AmbassadorProfile profile = new AmbassadorProfile();
         profile.setUser(user);
         profile.setCompany(company);
-        profile.setDisplayName(normalizeNullable(request.displayName()));
-        profile.setPhone(normalizeNullable(request.phone()));
-        profile.setSocialMediaPlatform(normalizeNullable(request.socialMediaPlatform()));
-        profile.setSocialMediaHandle(normalizeNullable(request.socialMediaHandle()));
+        profile.setDisplayName(normalizeNullable(displayName));
+        profile.setPhone(normalizeNullable(phone));
+        profile.setBio(normalizeNullable(bio));
+        profile.setSocialMediaPlatform(normalizeNullable(socialMediaPlatform));
+        profile.setSocialMediaHandle(normalizeNullable(socialMediaHandle));
         profile.setAmbassadorCode(generateAmbassadorCode());
         profile.setStatus(AmbassadorStatus.INVITED);
         profile = ambassadorProfileRepository.save(profile);
 
         IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(user, InvitationPurpose.AMBASSADOR_ONBOARDING);
 
-        return new AmbassadorCreationResponse(toSummary(profile), invitation.token(), invitation.expiresAt());
+        return new AmbassadorProvisioningResult(profile, invitation);
+    }
+
+    record AmbassadorProvisioningResult(AmbassadorProfile profile, IssuedInvitationResponse invitation) {
     }
 
     @Transactional
@@ -191,7 +231,7 @@ public class AmbassadorAdminService {
                 .orElseThrow(() -> new NotFoundException("Ambassador not found"));
     }
 
-    private AmbassadorSummaryResponse toSummary(AmbassadorProfile profile) {
+    AmbassadorSummaryResponse toSummary(AmbassadorProfile profile) {
         AmbassadorStats stats = buildStats(profile.getUser().getId(), profile.getCompany().getId());
         return new AmbassadorSummaryResponse(
                 profile.getId(),

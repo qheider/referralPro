@@ -103,4 +103,17 @@ public interface ReferralRepository extends JpaRepository<Referral, Long> {
             LocalDateTime start,
             LocalDateTime end
     );
+
+    // Same-session idempotent lookup: a resubmitted lead form in the same browsing session should
+    // return the referral already created for it, not create a duplicate.
+    Optional<Referral> findByReferralLinkEntityIdAndAttributionSessionId(Long referralLinkEntityId, String attributionSessionId);
+
+    // Cross-session/cross-device duplicate check: is there already a non-terminal referral for
+    // this email against this link? Terminal statuses are excluded so a prior dead-end submission
+    // doesn't block a legitimate resubmission.
+    boolean existsByReferralLinkEntityIdAndCustomerUserEmailAndStatusNotIn(
+            Long referralLinkEntityId,
+            String email,
+            Collection<ReferralStatus> excludedStatuses
+    );
 }

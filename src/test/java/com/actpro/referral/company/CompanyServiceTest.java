@@ -1,7 +1,11 @@
 package com.actpro.referral.company;
 
+import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.InvitationPurpose;
+import com.actpro.referral.auth.UserStatus;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
@@ -19,6 +23,7 @@ import java.time.LocalDateTime;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +43,12 @@ class CompanyServiceTest {
     @Mock
     private CompanyApiKeyService companyApiKeyService;
 
+    @Mock
+    private CompanyIntegrationRepository companyIntegrationRepository;
+
+    @Mock
+    private AccountInvitationService accountInvitationService;
+
     @InjectMocks
     private CompanyService companyService;
 
@@ -55,19 +66,35 @@ class CompanyServiceTest {
         when(companyApiKeyService.issueInitialKey(any(Company.class)))
                 .thenReturn(new IssuedApiKeyResponse(1L, "key_abc123", "cmp_live_rawsecret", LocalDateTime.now()));
         when(passwordEncoder.encode(request.password())).thenReturn("encoded-password");
+        when(dashboardUserRepository.save(any(DashboardUser.class))).thenAnswer(invocation -> {
+            DashboardUser user = invocation.getArgument(0);
+            user.setId(42L);
+            return user;
+        });
+        LocalDateTime verificationExpiry = LocalDateTime.now().plusDays(7);
+        when(accountInvitationService.issueInvitation(any(DashboardUser.class), eq(InvitationPurpose.COMPANY_EMAIL_VERIFICATION)))
+                .thenReturn(new IssuedInvitationResponse(1L, "raw-verification-token", verificationExpiry));
 
         RegisterCompanyResponse response = companyService.registerCompany(request);
 
-        assertEquals(7L, response.getCompanyId());
-        assertEquals("cmp_live_rawsecret", response.getApiKey());
+        assertEquals(7L, response.companyId());
+        assertEquals("cmp_live_rawsecret", response.apiKey());
+        assertEquals("raw-verification-token", response.emailVerificationToken());
+        assertEquals(verificationExpiry, response.emailVerificationTokenExpiresAt());
 
         ArgumentCaptor<Company> companyCaptor = ArgumentCaptor.forClass(Company.class);
         verify(companyApiKeyService).issueInitialKey(companyCaptor.capture());
         assertEquals(7L, companyCaptor.getValue().getId());
 
+        ArgumentCaptor<CompanyIntegration> integrationCaptor = ArgumentCaptor.forClass(CompanyIntegration.class);
+        verify(companyIntegrationRepository).save(integrationCaptor.capture());
+        assertEquals(CompanyIntegrationStatus.NOT_CONFIGURED, integrationCaptor.getValue().getStatus());
+        assertEquals(7L, integrationCaptor.getValue().getCompany().getId());
+
         ArgumentCaptor<DashboardUser> userCaptor = ArgumentCaptor.forClass(DashboardUser.class);
         verify(dashboardUserRepository).save(userCaptor.capture());
         assertEquals("encoded-password", userCaptor.getValue().getPassword());
+        assertEquals(UserStatus.PENDING, userCaptor.getValue().getStatus());
     }
 
     @Test

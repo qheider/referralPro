@@ -40,6 +40,17 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/hash").permitAll()
                         .requestMatchers("/api/auth/accept-invitation").permitAll()
+                        .requestMatchers("/api/auth/verify-email").permitAll()
+                        // Public ambassador application submission - no account exists yet for the
+                        // applicant. Only the exact /apply path: everything else under
+                        // /api/ambassador-applications/** is the /api/admin/... review surface,
+                        // already covered by anyRequest().authenticated() + @PreAuthorize.
+                        .requestMatchers("/api/ambassador-applications/apply").permitAll()
+                        // Public referred-customer lead submission - the visitor has no account
+                        // yet. Single-segment wildcard for the path token, not a broad /**.
+                        .requestMatchers("/api/referral-links/*/leads").permitAll()
+                        // Public campaign join-link resolution - the visitor has no account yet.
+                        .requestMatchers("/api/campaigns/join/**").permitAll()
                         .requestMatchers("/r/**").permitAll()
                         .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/actuator/**").permitAll()

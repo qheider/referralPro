@@ -1,5 +1,6 @@
 package com.actpro.referral.ambassador;
 
+import com.actpro.referral.ambassador.AmbassadorAdminService.AmbassadorProvisioningResult;
 import com.actpro.referral.ambassador.dto.AmbassadorCreationResponse;
 import com.actpro.referral.ambassador.dto.AmbassadorDetailResponse;
 import com.actpro.referral.ambassador.dto.CreateAmbassadorRequest;
@@ -135,6 +136,44 @@ class AmbassadorAdminServiceTest {
         assertEquals("Sarah", response.ambassador().firstName());
         assertEquals(AmbassadorStatus.INVITED, response.ambassador().status());
         assertEquals("raw-invitation-token", response.invitationToken());
+    }
+
+    @Test
+    void shouldProvisionAmbassadorAccountReusableByApplicationApproval() {
+        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(false);
+        when(passwordEncoder.encode(any())).thenReturn("encoded-password");
+        when(ambassadorProfileRepository.existsByAmbassadorCode(any())).thenReturn(false);
+        when(dashboardUserRepository.save(any(DashboardUser.class))).thenAnswer(invocation -> {
+            DashboardUser user = invocation.getArgument(0);
+            user.setId(21L);
+            return user;
+        });
+        when(ambassadorProfileRepository.save(any(AmbassadorProfile.class))).thenAnswer(invocation -> {
+            AmbassadorProfile profile = invocation.getArgument(0);
+            profile.setId(31L);
+            return profile;
+        });
+        when(accountInvitationService.issueInvitation(any(DashboardUser.class), eq(InvitationPurpose.AMBASSADOR_ONBOARDING)))
+                .thenReturn(new IssuedInvitationResponse(100L, "raw-invitation-token", LocalDateTime.now().plusDays(7)));
+
+        AmbassadorProvisioningResult result = ambassadorAdminService.provisionAmbassadorAccount(
+                company, "sarah@example.com", "Sarah", "Ahmed", "Sarah Travels", "4165551234",
+                "Applicant's motivation message", "Instagram", "@sarahtravels");
+
+        assertEquals("Applicant's motivation message", result.profile().getBio());
+        assertEquals(AmbassadorStatus.INVITED, result.profile().getStatus());
+        assertEquals("raw-invitation-token", result.invitation().token());
+    }
+
+    @Test
+    void shouldRejectProvisioningWhenEmailAlreadyInUse() {
+        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(true);
+
+        assertThrows(BadRequestException.class, () -> ambassadorAdminService.provisionAmbassadorAccount(
+                company, "sarah@example.com", "Sarah", "Ahmed", null, null, null, null, null));
+
+        verify(dashboardUserRepository, never()).save(any());
+        verify(accountInvitationService, never()).issueInvitation(any(), any());
     }
 
     @Test

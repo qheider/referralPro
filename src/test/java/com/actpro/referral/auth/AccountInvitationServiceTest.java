@@ -155,12 +155,52 @@ class AccountInvitationServiceTest {
                 () -> accountInvitationService.acceptInvitation("raw-token-value", "newPassword123"));
     }
 
+    @Test
+    void shouldVerifyEmailAndActivateUserWithoutTouchingPassword() {
+        user.setPassword("original-hash");
+        AccountInvitation invitation = usableInvitation(InvitationPurpose.COMPANY_EMAIL_VERIFICATION);
+        String rawToken = "raw-verification-token";
+        when(accountInvitationRepository.findByTokenHash(sha256(rawToken))).thenReturn(Optional.of(invitation));
+
+        DashboardUser result = accountInvitationService.verifyEmail(rawToken);
+
+        assertEquals(user, result);
+        assertEquals(UserStatus.ACTIVE, user.getStatus());
+        assertEquals("original-hash", user.getPassword(), "email verification must not reset the password");
+        assertNotNull(invitation.getAcceptedAt());
+    }
+
+    @Test
+    void shouldRejectEmailVerificationWithWrongPurposeToken() {
+        AccountInvitation invitation = usableInvitation(InvitationPurpose.AMBASSADOR_ONBOARDING);
+        String rawToken = "raw-onboarding-token";
+        when(accountInvitationRepository.findByTokenHash(sha256(rawToken))).thenReturn(Optional.of(invitation));
+
+        assertThrows(BadRequestException.class, () -> accountInvitationService.verifyEmail(rawToken));
+        assertEquals(UserStatus.PENDING, user.getStatus());
+    }
+
+    @Test
+    void shouldRejectExpiredEmailVerificationToken() {
+        AccountInvitation invitation = usableInvitation(InvitationPurpose.COMPANY_EMAIL_VERIFICATION);
+        invitation.setExpiresAt(LocalDateTime.now().minusDays(1));
+        String rawToken = "raw-verification-token";
+        when(accountInvitationRepository.findByTokenHash(sha256(rawToken))).thenReturn(Optional.of(invitation));
+
+        assertThrows(BadRequestException.class, () -> accountInvitationService.verifyEmail(rawToken));
+        assertEquals(UserStatus.PENDING, user.getStatus());
+    }
+
     private AccountInvitation usableInvitation() {
+        return usableInvitation(InvitationPurpose.AMBASSADOR_ONBOARDING);
+    }
+
+    private AccountInvitation usableInvitation(InvitationPurpose purpose) {
         AccountInvitation invitation = new AccountInvitation();
         invitation.setId(7L);
         invitation.setDashboardUser(user);
         invitation.setCompany(company);
-        invitation.setPurpose(InvitationPurpose.AMBASSADOR_ONBOARDING);
+        invitation.setPurpose(purpose);
         invitation.setExpiresAt(LocalDateTime.now().plusDays(7));
         return invitation;
     }

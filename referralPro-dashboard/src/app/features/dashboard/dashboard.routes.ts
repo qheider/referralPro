@@ -5,6 +5,7 @@ import { AmbassadorDetailComponent } from './ambassador-detail.component';
 import { AmbassadorFormComponent } from './ambassador-form.component';
 import { AmbassadorsComponent } from './ambassadors.component';
 import { CampaignDetailComponent } from './campaign-detail.component';
+import { CampaignFormComponent } from './campaign-form.component';
 import { DashboardComponent } from './dashboard.component';
 import { DashboardLayoutComponent } from './dashboard-layout.component';
 
@@ -38,6 +39,10 @@ export const dashboardRoutes: Routes = [
       {
         path: 'overview',
         component: DashboardComponent
+      },
+      {
+        path: 'campaigns/new',
+        component: CampaignFormComponent
       },
       {
         path: 'campaigns/:campaignId',

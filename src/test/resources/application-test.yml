@@ -20,6 +20,8 @@ app:
     expiration-minutes: 60
   outbox:
     dispatch-enabled: false
+  campaign:
+    expiration-enabled: false
 
 logging:
   level:

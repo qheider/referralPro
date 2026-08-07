@@ -110,6 +110,13 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/auth/login") ||
                 path.startsWith("/api/auth/hash") ||
                 path.startsWith("/api/auth/accept-invitation") ||
+                path.startsWith("/api/auth/verify-email") ||
+                // Kept in sync with SecurityConfig's permitAll matchers - this filter runs ahead
+                // of Spring Security's AuthorizationFilter, so a path missing here 401s before
+                // permitAll ever gets a say, regardless of what SecurityConfig allows.
+                path.equals("/api/ambassador-applications/apply") ||
+                (path.startsWith("/api/referral-links/") && path.endsWith("/leads")) ||
+                path.startsWith("/api/campaigns/join/") ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
