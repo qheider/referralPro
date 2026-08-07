@@ -70,7 +70,13 @@ public class RevenueAdminService {
         }
         reward.setStatus(AmbassadorRewardStatus.APPROVED);
         reward.setApprovedAt(LocalDateTime.now());
-        return toResponse(ambassadorRewardRepository.save(reward));
+        AmbassadorReward saved = ambassadorRewardRepository.save(reward);
+        // Phase 9 hardening: basic operational traceability for a money-affecting admin action -
+        // the first real caller of CurrentUserService#getCurrentActor outside its own class,
+        // exactly the "who did this" use case its Javadoc names. Not a full audit trail (that's
+        // an explicitly-deferred, separate feature per phases_tracker.txt's carried-forward notes).
+        log.info("Reward {} approved by {} (userId={})", rewardId, currentUserService.getCurrentActor().username(), currentUserService.getCurrentUserId());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -81,7 +87,10 @@ public class RevenueAdminService {
         }
         reward.setStatus(AmbassadorRewardStatus.PAID);
         reward.setPaidAt(LocalDateTime.now());
-        return toResponse(ambassadorRewardRepository.save(reward));
+        AmbassadorReward saved = ambassadorRewardRepository.save(reward);
+        log.info("Reward {} marked PAID by {} (userId={}, value={} {})",
+                rewardId, currentUserService.getCurrentActor().username(), currentUserService.getCurrentUserId(), reward.getRewardValue(), reward.getCurrency());
+        return toResponse(saved);
     }
 
     @Transactional
@@ -95,6 +104,7 @@ public class RevenueAdminService {
         reward.setStatus(AmbassadorRewardStatus.REJECTED);
         reward.setRejectedAt(LocalDateTime.now());
         reward.setRejectionReason(reason);
+        log.info("Reward {} rejected by {} (userId={}): {}", rewardId, currentUserService.getCurrentActor().username(), currentUserService.getCurrentUserId(), reason);
         return toResponse(ambassadorRewardRepository.save(reward));
     }
 

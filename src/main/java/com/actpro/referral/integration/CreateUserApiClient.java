@@ -13,8 +13,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientException;
 
 import java.net.SocketTimeoutException;
 
@@ -63,7 +63,18 @@ public class CreateUserApiClient {
                     .onStatus(status -> true, (req, res) -> { /* no-op: never throw on HTTP error status */ })
                     .toEntity(String.class);
             return toResult(response);
-        } catch (ResourceAccessException e) {
+        } catch (RestClientException e) {
+            // Broadened from ResourceAccessException (Phase 9 hardening, found via a real
+            // read-timeout test, not a mock): a timeout that occurs while RestClient is reading
+            // the status line/headers (e.g. inside the onStatus predicate above, which touches
+            // the response before body conversion) surfaces as a generic RestClientException
+            // wrapping SocketTimeoutException, not a ResourceAccessException - catching only the
+            // latter let it escape uncaught up through ApiSubmissionDispatchService.dispatchOne,
+            // which has no catch of its own (it trusts this method to always return a result,
+            // never throw) - leaving the submission (and the rest of its claimed batch, since the
+            // scheduled loop has no per-item catch either) permanently stuck in PROCESSING with
+            // no further retry. Catching the RestClientException supertype restores that contract
+            // for every I/O failure shape, not just the one the original narrower catch handled.
             FailureCategory category = classifyIoFailure(e);
             log.warn("Outgoing integration call to {} failed ({}): {}", integration.getApiBaseUrl(), category, e.getMessage());
             return CreateUserApiCallResult.ioFailure(category, sanitize(e.getMessage()));
@@ -125,8 +136,17 @@ public class CreateUserApiClient {
         return null;
     }
 
-    private FailureCategory classifyIoFailure(ResourceAccessException e) {
-        return e.getCause() instanceof SocketTimeoutException ? FailureCategory.TIMEOUT : FailureCategory.CONNECTION_ERROR;
+    private FailureCategory classifyIoFailure(RestClientException e) {
+        // Walk the full cause chain, not just e.getCause(): the wrapping depth differs depending
+        // on which layer of RestClient the failure surfaces from (see the catch site's comment).
+        Throwable cause = e;
+        while (cause != null) {
+            if (cause instanceof SocketTimeoutException) {
+                return FailureCategory.TIMEOUT;
+            }
+            cause = cause.getCause();
+        }
+        return FailureCategory.CONNECTION_ERROR;
     }
 
     private String sanitize(String message) {

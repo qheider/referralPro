@@ -27,7 +27,7 @@ See `referralPro-dashboard/CLAUDE.md` for frontend commands and structure.
 ### Docker (full stack)
 
 ```powershell
-docker-compose up -d --build   # MySQL (3307), backend (8080), frontend (80)
+docker-compose up -d --build   # MySQL (3306), backend (8080), frontend (80)
 docker-compose logs -f backend
 ```
 

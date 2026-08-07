@@ -193,6 +193,34 @@ class ApiSubmissionDispatchServiceTest {
     }
 
     @Test
+    void shouldRetryOnTimeoutIoFailure() {
+        // Phase 9 hardening: TIMEOUT is in TRANSIENT_CATEGORIES alongside CONNECTION_ERROR/
+        // SERVER_ERROR/RATE_LIMITED, but only CONNECTION_ERROR/SERVER_ERROR had their own test
+        // above - closing the gap for the other two.
+        when(createUserApiClient.call(eq(integration), any()))
+                .thenReturn(CreateUserApiCallResult.ioFailure(FailureCategory.TIMEOUT, "read timed out"));
+
+        dispatchService.dispatchOne(submission);
+
+        assertEquals(ApiSubmissionStatus.RETRY_SCHEDULED, submission.getStatus());
+        assertEquals("read timed out", submission.getLastError());
+        assertTrue(submission.getAvailableAt().isAfter(LocalDateTime.now()));
+    }
+
+    @Test
+    void shouldRetryOnRateLimitedResponse() {
+        when(createUserApiClient.call(eq(integration), any())).thenReturn(CreateUserApiCallResult.httpResponse(429, null, null, null));
+
+        dispatchService.dispatchOne(submission);
+
+        assertEquals(ApiSubmissionStatus.RETRY_SCHEDULED, submission.getStatus());
+
+        ArgumentCaptor<IntegrationAttempt> captor = ArgumentCaptor.forClass(IntegrationAttempt.class);
+        verify(integrationAttemptRepository).save(captor.capture());
+        assertEquals(FailureCategory.RATE_LIMITED, captor.getValue().getFailureCategory());
+    }
+
+    @Test
     void shouldPermanentlyFailWhenTransientFailureExceedsMaxAttempts() {
         submission.setAttempts(4); // 5th attempt, maxAttempts = 5 -> no further retry
         when(createUserApiClient.call(eq(integration), any())).thenReturn(CreateUserApiCallResult.httpResponse(503, null, null, null));

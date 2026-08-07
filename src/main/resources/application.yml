@@ -14,7 +14,10 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-    show-sql: true
+    # Never bound parameter values, only the SQL template - but still real per-statement I/O noise
+    # duplicated on stdout regardless of the org.hibernate.SQL logger level below, so it's off by
+    # default (Phase 9 hardening) and opt-in via SHOW_SQL for local debugging.
+    show-sql: ${SHOW_SQL:false}
     open-in-view: false
 
   flyway:
@@ -67,6 +70,11 @@ app:
 
 logging:
   level:
-    com.actpro.referral: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
+    # Phase 9 hardening: these previously shipped hardcoded at DEBUG - fine for local development,
+    # too noisy (and, for org.springframework.security, more per-request filter-chain/path detail
+    # than a shipped default should emit) for a release-ready default. Now INFO/WARN by default,
+    # each independently raisable back to DEBUG per environment via these env vars without a code
+    # change or a separate profile file.
+    com.actpro.referral: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}

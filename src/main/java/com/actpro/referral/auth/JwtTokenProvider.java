@@ -12,11 +12,19 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:your-super-secret-jwt-key-that-is-at-least-256-bits-long-for-hs256}")
+    // Phase 9 hardening fix: this used to read the plain "jwt.secret"/"jwt.expiration" property
+    // paths, which nothing in application.yml ever sets - the real, env-var-driven properties are
+    // "app.jwt.secret"/"app.jwt.expiration-minutes" (see application.yml). That meant every
+    // deployment silently signed and verified tokens with the hardcoded fallback literal below,
+    // regardless of the JWT_SECRET env var - a checked-in, guessable HS256 key that lets anyone
+    // forge a JWT for any known username/companyId/role. Found by tenant-security-reviewer's
+    // Phase 9 audit; fixed by binding to the property path JwtAuthenticationFilter/AuthService and
+    // docker-compose.yml already assumed was in effect.
+    @Value("${app.jwt.secret:your-super-secret-jwt-key-that-is-at-least-256-bits-long-for-hs256}")
     private String jwtSecret;
 
-    @Value("${jwt.expiration:86400000}") // 24 hours in milliseconds
-    private long jwtExpirationMs;
+    @Value("${app.jwt.expiration-minutes:120}")
+    private long jwtExpirationMinutes;
 
     private SecretKey getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -24,7 +32,7 @@ public class JwtTokenProvider {
 
     public String generateToken(Long userId, String username, Long companyId, String role) {
         Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + jwtExpirationMs);
+        Date expiryDate = new Date(now.getTime() + java.time.Duration.ofMinutes(jwtExpirationMinutes).toMillis());
 
         return Jwts.builder()
                 .subject(userId.toString())

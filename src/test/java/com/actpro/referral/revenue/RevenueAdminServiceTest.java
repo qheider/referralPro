@@ -54,6 +54,9 @@ class RevenueAdminServiceTest {
         service = new RevenueAdminService(ambassadorRewardRepository, campaignRepository, currentUserService, entityManager);
 
         lenient().when(currentUserService.getCurrentCompanyId()).thenReturn(7L);
+        lenient().when(currentUserService.getCurrentUserId()).thenReturn(99L);
+        lenient().when(currentUserService.getCurrentActor())
+                .thenReturn(new com.actpro.referral.security.CurrentActor(99L, "admin@example.test", 7L, com.actpro.referral.auth.UserRole.COMPANY_ADMIN));
 
         Company company = new Company();
         company.setId(7L);
