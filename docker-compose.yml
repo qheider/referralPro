@@ -7,24 +7,24 @@ services:
   # corrected to match instead, see that file's history for this same fix). .env.example's
   # DATABASE_URL already points at the in-network service name `mysql:3306` (containers reach each
   # other by service name, not the host-mapped port), so no change needed there.
-  mysql:
-    image: mysql:8.4
-    container_name: referral-mysql
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:-referral_platform}
-      MYSQL_USER: ${MYSQL_USER:-referral_user}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-referral_pass}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 5s
-      retries: 10
-    networks:
-      - referral-network
+  # mysql:
+  #   image: mysql:8.4
+  #   container_name: referral-mysql
+  #   environment:
+  #     MYSQL_DATABASE: ${MYSQL_DATABASE:-referral_platform}
+  #     MYSQL_USER: ${MYSQL_USER:-referral_user}
+  #     MYSQL_PASSWORD: ${MYSQL_PASSWORD:-referral_pass}
+  #     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root_pass}
+  #   ports:
+  #     - "3306:3306"
+  #   volumes:
+  #     - mysql_data:/var/lib/mysql
+  #   healthcheck:
+  #     test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+  #     timeout: 5s
+  #     retries: 10
+  #   networks:
+  #     - referral-network
 
   backend:
     build:
@@ -43,9 +43,9 @@ services:
       INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
     ports:
       - "8080:8080"
-    depends_on:
-      mysql:
-        condition: service_healthy
+    # depends_on:
+    #   mysql:
+    #     condition: service_healthy
     networks:
       - referral-network
     restart: unless-stopped
