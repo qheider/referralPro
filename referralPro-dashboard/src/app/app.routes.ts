@@ -4,6 +4,7 @@ import { authGuard } from './core/guards/auth.guard';
 import { companyAdminGuard } from './core/guards/company-admin.guard';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
+import { VerifyEmailComponent } from './features/auth/verify-email.component';
 import { CampaignJoinComponent } from './features/public/campaign-join.component';
 
 export const routes: Routes = [
@@ -14,6 +15,10 @@ export const routes: Routes = [
   {
     path: 'register',
     component: RegisterComponent
+  },
+  {
+    path: 'verify-email',
+    component: VerifyEmailComponent
   },
   {
     // Public campaign join link (Phase 3): /join/{campaignCode}

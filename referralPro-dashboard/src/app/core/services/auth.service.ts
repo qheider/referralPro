@@ -198,6 +198,20 @@ export class AuthService {
     return this.getCurrentUserValue()?.role === role;
   }
 
+  /**
+   * Verify email with token from registration
+   */
+  verifyEmail(token: string): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${environment.apiUrl}/auth/verify-email`, { token })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Email verification failed')),
+        catchError(error => {
+          console.error('Email verification failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
   getDefaultRoute(): string {
     return this.getDefaultRouteForRole(this.getCurrentUserValue()?.role);
   }

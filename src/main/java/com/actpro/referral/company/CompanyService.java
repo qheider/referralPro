@@ -7,6 +7,7 @@ import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.UserStatus;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.common.EmailService;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
@@ -30,6 +31,7 @@ public class CompanyService {
     private final CompanyIntegrationRepository companyIntegrationRepository;
     private final AccountInvitationService accountInvitationService;
     private final WebhookPublicIdGenerator webhookPublicIdGenerator;
+    private final EmailService emailService;
 
     @Transactional
     public RegisterCompanyResponse registerCompany(RegisterCompanyRequest request) {
@@ -127,6 +129,13 @@ public class CompanyService {
 
         IssuedInvitationResponse verification = accountInvitationService.issueInvitation(
                 adminUser, InvitationPurpose.COMPANY_EMAIL_VERIFICATION);
+
+        // Send verification email to admin
+        try {
+            emailService.sendVerificationEmail(request.adminWorkEmail(), verification.token());
+        } catch (Exception e) {
+            log.warn("Failed to send verification email, but registration completed. Admin will see token in response.", e);
+        }
 
         return new RegisterCompanyResponse(
                 company.getId(),

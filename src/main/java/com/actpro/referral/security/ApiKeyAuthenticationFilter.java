@@ -118,10 +118,36 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 (path.startsWith("/api/referral-links/") && path.endsWith("/leads")) ||
                 path.startsWith("/api/campaigns/join/") ||
                 (path.startsWith("/api/v1/integrations/") && path.endsWith("/webhooks/service-status")) ||
+                // Frontend routes - allow browser to request these so Angular Router can handle them
+                path.equals("/") ||
+                path.equals("/index.html") ||
+                path.equals("/login") ||
+                path.equals("/register") ||
+                path.equals("/verify-email") ||
+                path.equals("/accept-invitation") ||
+                path.startsWith("/dashboard") ||
+                path.startsWith("/ambassador") ||
+                path.startsWith("/join") ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
-                path.startsWith("/actuator");
+                path.startsWith("/actuator") ||
+                // Static assets
+                path.endsWith(".js") ||
+                path.endsWith(".css") ||
+                path.endsWith(".html") ||
+                path.endsWith(".map") ||
+                path.endsWith(".png") ||
+                path.endsWith(".jpg") ||
+                path.endsWith(".jpeg") ||
+                path.endsWith(".gif") ||
+                path.endsWith(".svg") ||
+                path.endsWith(".woff") ||
+                path.endsWith(".woff2") ||
+                path.endsWith(".ttf") ||
+                path.endsWith(".eot") ||
+                path.endsWith(".ico") ||
+                path.endsWith(".json");
     }
 
     private boolean isJwtProtectedEndpoint(String path) {
