@@ -4,6 +4,8 @@ import com.actpro.referral.campaign.dto.CampaignResponse;
 import com.actpro.referral.campaign.dto.CreateCampaignRequest;
 import com.actpro.referral.campaign.dto.UpdateCampaignRequest;
 import com.actpro.referral.common.ApiResponse;
+import com.actpro.referral.company.Company;
+import com.actpro.referral.security.CompanyContext;
 import com.actpro.referral.security.CurrentUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +23,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/companies/{companyId}/campaigns")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('COMPANY_ADMIN')")
+@PreAuthorize("hasAnyRole('COMPANY', 'COMPANY_ADMIN')")
 public class CampaignController {
 
     private final CampaignService campaignService;
@@ -118,6 +121,16 @@ public class CampaignController {
     }
 
     private Long resolveCompanyId(Long companyId) {
+        // For API key auth (ROLE_COMPANY), use CompanyContext
+        Company companyContext = CompanyContext.getCurrentCompany();
+        if (companyContext != null) {
+            if (!companyContext.getId().equals(companyId)) {
+                throw new AccessDeniedException("Cannot access another company's data");
+            }
+            return companyId;
+        }
+
+        // For JWT auth (dashboard users), use CurrentUserService
         currentUserService.assertCurrentCompanyAccess(companyId);
         return currentUserService.getCurrentCompanyId();
     }

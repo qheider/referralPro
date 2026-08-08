@@ -80,7 +80,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         }
 
         Company company = companyOpt.get();
-        log.info("Authenticated company: {} (ID: {})", company.getName(), company.getId());
+        log.info("Authenticated company ID: {}", company.getId());
 
         // Store company in context
         CompanyContext.setCurrentCompany(company);
