@@ -16,6 +16,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -49,6 +50,8 @@ class ReferralClickServiceTest {
 
     @BeforeEach
     void setUp() {
+        ReflectionTestUtils.setField(referralClickService, "frontendUrl", "https://app.example.com");
+
         company = new Company();
         company.setId(5L);
         company.setName("Acme");
@@ -60,7 +63,7 @@ class ReferralClickServiceTest {
     }
 
     @Test
-    void shouldRecordClickAndRedirectForAmbassadorLinkToken() {
+    void shouldRecordClickAndRedirectToInternalRegistrationPageForAmbassadorLinkToken() {
         DashboardUser ambassadorUser = new DashboardUser();
         ambassadorUser.setId(21L);
 
@@ -78,7 +81,7 @@ class ReferralClickServiceTest {
                 "AbcDef1234567890", "203.0.113.5", "test-agent", "https://source.example.com", "session-1"
         );
 
-        assertEquals("https://campaign.example.com?ref=AbcDef1234567890", redirectUrl);
+        assertEquals("https://app.example.com/refer/AbcDef1234567890?s=session-1", redirectUrl);
 
         ArgumentCaptor<ReferralClick> captor = ArgumentCaptor.forClass(ReferralClick.class);
         verify(referralClickRepository).save(captor.capture());
@@ -96,6 +99,24 @@ class ReferralClickServiceTest {
 
         verify(referralLinkRepository).incrementClickCount(77L);
         verify(referralRepository, never()).findByReferralCodeWithCampaign(any());
+    }
+
+    @Test
+    void shouldOmitSessionQueryParamWhenNoSessionId() {
+        ReferralLink link = new ReferralLink();
+        link.setId(77L);
+        link.setCompany(company);
+        link.setCampaign(campaign);
+        link.setPublicToken("AbcDef1234567890");
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+
+        when(referralLinkRepository.findDetailedByPublicToken("AbcDef1234567890")).thenReturn(Optional.of(link));
+
+        String redirectUrl = referralClickService.resolveAndRecordClick(
+                "AbcDef1234567890", "203.0.113.5", "test-agent", null, null
+        );
+
+        assertEquals("https://app.example.com/refer/AbcDef1234567890", redirectUrl);
     }
 
     @Test

@@ -94,6 +94,79 @@ public class AmbassadorApplicationService {
         return new AmbassadorApplicationSubmissionResponse(application.getId(), application.getStatus(), application.getCreatedAt());
     }
 
+    /**
+     * Public, unauthenticated instant self-service registration via a campaign's join link -
+     * unlike {@link #submitApplication}, which parks the applicant PENDING for a human admin to
+     * review, this provisions the ambassador account immediately (product decision: no approval
+     * gate on this path). Still creates an {@link AmbassadorApplication} row, pre-set to
+     * {@code APPROVED} with a null {@code reviewedByUserId} (system-approved, not a human) -
+     * purely so {@link AmbassadorAdminService#activateInvitedAmbassador} keeps working unchanged:
+     * it finds which campaign to auto-assign by looking up the application via
+     * {@code resultingAmbassadorProfileId}. The account stays {@code PENDING}/unusable until the
+     * applicant clicks the onboarding email's accept-invitation link (sets a password, activates
+     * the {@code DashboardUser}/{@code AmbassadorProfile}, and creates the
+     * {@code CampaignAssignment} + {@code ReferralLink} - see
+     * {@code AmbassadorAdminService.activateInvitedAmbassador}).
+     */
+    @Transactional
+    public AmbassadorRegistrationResponse registerAmbassador(
+            Long companyId, String campaignCode, SubmitAmbassadorApplicationRequest request) {
+        Company company = companyRepository.findById(companyId)
+                .orElseThrow(() -> new NotFoundException("Company not found"));
+
+        if (company.getStatus() != CompanyStatus.ACTIVE) {
+            throw new BadRequestException("Company is not accepting ambassador registrations");
+        }
+
+        Campaign campaign = null;
+        if (campaignCode != null && !campaignCode.isBlank()) {
+            campaign = campaignService.getCampaignForEnrollment(campaignCode, company);
+        }
+
+        String normalizedEmail = request.email().trim().toLowerCase(Locale.ROOT);
+
+        if (dashboardUserRepository.existsByUsername(normalizedEmail)) {
+            throw new BadRequestException("An account with this email already exists");
+        }
+
+        if (ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(companyId, normalizedEmail, ApplicationStatus.PENDING)) {
+            throw new BadRequestException("A registration for this email is already in progress");
+        }
+
+        AmbassadorApplication application = new AmbassadorApplication();
+        application.setCompany(company);
+        application.setCampaign(campaign);
+        application.setFirstName(request.firstName().trim());
+        application.setLastName(request.lastName().trim());
+        application.setEmail(normalizedEmail);
+        application.setPhone(normalizeNullable(request.phone()));
+        application.setDisplayName(normalizeNullable(request.displayName()));
+        application.setBio(normalizeNullable(request.bio()));
+        application.setSocialMediaPlatform(normalizeNullable(request.socialMediaPlatform()));
+        application.setSocialMediaHandle(normalizeNullable(request.socialMediaHandle()));
+        application.setStatus(ApplicationStatus.APPROVED);
+        application.setReviewedAt(LocalDateTime.now());
+        application = ambassadorApplicationRepository.save(application);
+
+        AmbassadorProvisioningResult result = ambassadorAdminService.provisionAmbassadorAccount(
+                company,
+                application.getEmail(),
+                application.getFirstName(),
+                application.getLastName(),
+                application.getDisplayName(),
+                application.getPhone(),
+                application.getBio(),
+                application.getSocialMediaPlatform(),
+                application.getSocialMediaHandle()
+        );
+
+        application.setResultingAmbassadorProfileId(result.profile().getId());
+
+        publishEvent(company, application, "ambassador_application.approved");
+
+        return new AmbassadorRegistrationResponse(result.profile().getId(), result.profile().getStatus(), application.getCreatedAt());
+    }
+
     @Transactional(readOnly = true)
     public AmbassadorApplicationPageResponse listApplications(int page, int size, String sort, String search, ApplicationStatus status) {
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));

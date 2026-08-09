@@ -5,6 +5,10 @@ export type CampaignStatus = 'DRAFT' | 'SCHEDULED' | 'ACTIVE' | 'PAUSED' | 'EXPI
 export interface CreateCampaignRequest {
   name: string;
   description?: string | null;
+  qualifyingConditions?: string | null;
+  incentiveDescription?: string | null;
+  termsUrl?: string | null;
+  budgetCap?: number | null;
   landingPageUrl: string;
   startDate: string;
   endDate: string;
@@ -21,6 +25,10 @@ export interface CreateCampaignRequest {
 export interface UpdateCampaignRequest {
   name?: string | null;
   description?: string | null;
+  qualifyingConditions?: string | null;
+  incentiveDescription?: string | null;
+  termsUrl?: string | null;
+  budgetCap?: number | null;
   landingPageUrl?: string | null;
   startDate?: string | null;
   endDate?: string | null;
@@ -38,6 +46,10 @@ export interface CampaignResponse {
   joinLink: string;
   name: string;
   description?: string | null;
+  qualifyingConditions?: string | null;
+  incentiveDescription?: string | null;
+  termsUrl?: string | null;
+  budgetCap?: number | null;
   landingPageUrl: string;
   startDate: string;
   endDate: string;

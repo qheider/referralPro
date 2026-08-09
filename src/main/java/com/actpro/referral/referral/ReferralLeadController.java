@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -38,9 +39,17 @@ public class ReferralLeadController {
     public ResponseEntity<ApiResponse<SubmitReferralLeadResponse>> submitLead(
             @PathVariable String token,
             @CookieValue(name = AttributionSession.COOKIE_NAME, required = false) String rawSessionId,
+            // Fallback for ReferralPro's own /refer/{token} registration page: rp_attr_session is
+            // SameSite=Lax and set on this backend's origin, so it isn't attached to a cross-origin
+            // fetch/XHR POST from the frontend origin - that page instead forwards the session id
+            // it received as a query param on its own redirect (see ReferralClickService) here
+            // explicitly. Cookie wins if both are present/valid.
+            @RequestParam(name = "s", required = false) String querySessionId,
             @Valid @RequestBody SubmitReferralLeadRequest request
     ) {
-        String sessionId = AttributionSession.isValid(rawSessionId) ? rawSessionId : null;
+        String sessionId = AttributionSession.isValid(rawSessionId)
+                ? rawSessionId
+                : (AttributionSession.isValid(querySessionId) ? querySessionId : null);
         SubmitReferralLeadResponse response = referralLeadService.submitLead(token, sessionId, request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Lead submitted successfully", response));

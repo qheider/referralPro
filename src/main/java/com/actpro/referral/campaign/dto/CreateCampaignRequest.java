@@ -12,6 +12,15 @@ public record CreateCampaignRequest(
 
         String description,
 
+        String qualifyingConditions,
+
+        String incentiveDescription,
+
+        String termsUrl,
+
+        @DecimalMin(value = "0.0", message = "Budget cap must be positive")
+        BigDecimal budgetCap,
+
         @NotBlank(message = "Landing page URL is required")
         String landingPageUrl,
 

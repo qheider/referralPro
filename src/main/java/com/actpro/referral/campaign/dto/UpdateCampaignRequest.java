@@ -17,6 +17,13 @@ import java.time.LocalDateTime;
 public record UpdateCampaignRequest(
         String name,
         String description,
+        String qualifyingConditions,
+        String incentiveDescription,
+        String termsUrl,
+
+        @DecimalMin(value = "0.0", message = "Budget cap must be positive")
+        BigDecimal budgetCap,
+
         String landingPageUrl,
         LocalDateTime startDate,
         LocalDateTime endDate,

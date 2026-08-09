@@ -44,6 +44,26 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
             <input formControlName="landingPageUrl" placeholder="https://example.com/promo" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
           </label>
 
+          <label class="space-y-2 md:col-span-2">
+            <span class="text-sm font-medium text-slate-700">Qualifying conditions</span>
+            <textarea formControlName="qualifyingConditions" rows="2" placeholder="e.g. referee must complete a paid signup within 30 days" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500"></textarea>
+          </label>
+
+          <label class="space-y-2 md:col-span-2">
+            <span class="text-sm font-medium text-slate-700">Incentive description</span>
+            <textarea formControlName="incentiveDescription" rows="2" placeholder="What the referrer and referee get, in plain language" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500"></textarea>
+          </label>
+
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-slate-700">Terms URL</span>
+            <input formControlName="termsUrl" placeholder="https://example.com/terms" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+          </label>
+
+          <label class="space-y-2">
+            <span class="text-sm font-medium text-slate-700">Budget cap</span>
+            <input formControlName="budgetCap" type="number" min="0" step="0.01" placeholder="Optional" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+          </label>
+
           <label class="space-y-2">
             <span class="text-sm font-medium text-slate-700">Referral start date</span>
             <input formControlName="startDate" type="datetime-local" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
@@ -116,6 +136,10 @@ export class CampaignFormComponent {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(150)]],
       description: [''],
+      qualifyingConditions: [''],
+      incentiveDescription: [''],
+      termsUrl: ['', [Validators.maxLength(500)]],
+      budgetCap: [null as number | null, [Validators.min(0)]],
       landingPageUrl: ['', [Validators.required, Validators.maxLength(500)]],
       startDate: ['', [Validators.required]],
       endDate: ['', [Validators.required]],
@@ -168,6 +192,10 @@ export class CampaignFormComponent {
       .createCampaign(companyId, {
         name: rawValue.name ?? '',
         description: rawValue.description || null,
+        qualifyingConditions: rawValue.qualifyingConditions || null,
+        incentiveDescription: rawValue.incentiveDescription || null,
+        termsUrl: rawValue.termsUrl || null,
+        budgetCap: rawValue.budgetCap ?? null,
         landingPageUrl: rawValue.landingPageUrl ?? '',
         startDate: rawValue.startDate ?? '',
         endDate: rawValue.endDate ?? '',

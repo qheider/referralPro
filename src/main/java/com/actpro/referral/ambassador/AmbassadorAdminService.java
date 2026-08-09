@@ -4,6 +4,7 @@ import com.actpro.referral.ambassador.dto.*;
 import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.common.EmailService;
 import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.UserStatus;
@@ -55,6 +56,7 @@ public class AmbassadorAdminService {
     private final CurrentUserService currentUserService;
     private final AccountInvitationService accountInvitationService;
     private final CampaignAssignmentService campaignAssignmentService;
+    private final EmailService emailService;
 
     @Transactional
     public AmbassadorCreationResponse createAmbassador(CreateAmbassadorRequest request) {
@@ -127,6 +129,7 @@ public class AmbassadorAdminService {
         profile = ambassadorProfileRepository.save(profile);
 
         IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(user, InvitationPurpose.AMBASSADOR_ONBOARDING);
+        emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
 
         return new AmbassadorProvisioningResult(profile, invitation);
     }
@@ -142,7 +145,10 @@ public class AmbassadorAdminService {
             throw new BadRequestException("Ambassador has already accepted an invitation");
         }
 
-        return accountInvitationService.issueInvitation(profile.getUser(), InvitationPurpose.AMBASSADOR_ONBOARDING);
+        IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(profile.getUser(), InvitationPurpose.AMBASSADOR_ONBOARDING);
+        DashboardUser user = profile.getUser();
+        emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
+        return invitation;
     }
 
     /**

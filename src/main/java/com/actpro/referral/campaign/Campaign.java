@@ -35,6 +35,20 @@ public class Campaign extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // Captured/displayed only for now - no enforcement (e.g. budgetCap isn't checked against
+    // spend anywhere yet). See CampaignService/CreateCampaignRequest.
+    @Column(name = "qualifying_conditions", columnDefinition = "TEXT")
+    private String qualifyingConditions;
+
+    @Column(name = "incentive_description", columnDefinition = "TEXT")
+    private String incentiveDescription;
+
+    @Column(name = "terms_url", length = 500)
+    private String termsUrl;
+
+    @Column(name = "budget_cap", precision = 12, scale = 2)
+    private BigDecimal budgetCap;
+
     @Column(name = "landing_page_url", nullable = false, length = 500)
     private String landingPageUrl;
 

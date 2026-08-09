@@ -33,8 +33,12 @@ public class CampaignService {
     private final CampaignCodeGenerator campaignCodeGenerator;
     private final ReferralLinkRepository referralLinkRepository;
 
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
+    // Deliberately app.frontend-url, not app.base-url: /join/{campaignCode} is an Angular
+    // client-side route (see FrontendRoutingController's mapping and the
+    // campaign-join.component.ts join page), not a backend endpoint - unlike /r/{token} links,
+    // which are genuine backend routes and correctly use app.base-url elsewhere in this codebase.
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
 
     @Transactional
     public CampaignResponse createCampaign(Long companyId, CreateCampaignRequest request) {
@@ -50,6 +54,10 @@ public class CampaignService {
         campaign.setCampaignCode(campaignCodeGenerator.generateUniqueCode());
         campaign.setName(request.name());
         campaign.setDescription(request.description());
+        campaign.setQualifyingConditions(request.qualifyingConditions());
+        campaign.setIncentiveDescription(request.incentiveDescription());
+        campaign.setTermsUrl(request.termsUrl());
+        campaign.setBudgetCap(request.budgetCap());
         campaign.setLandingPageUrl(request.landingPageUrl());
         campaign.setStartDate(request.startDate());
         campaign.setEndDate(request.endDate());
@@ -87,6 +95,18 @@ public class CampaignService {
         }
         if (request.description() != null) {
             campaign.setDescription(request.description());
+        }
+        if (request.qualifyingConditions() != null) {
+            campaign.setQualifyingConditions(request.qualifyingConditions());
+        }
+        if (request.incentiveDescription() != null) {
+            campaign.setIncentiveDescription(request.incentiveDescription());
+        }
+        if (request.termsUrl() != null) {
+            campaign.setTermsUrl(request.termsUrl());
+        }
+        if (request.budgetCap() != null) {
+            campaign.setBudgetCap(request.budgetCap());
         }
         if (request.landingPageUrl() != null) {
             campaign.setLandingPageUrl(request.landingPageUrl());
@@ -380,9 +400,13 @@ public class CampaignService {
         return new CampaignResponse(
                 campaign.getId(),
                 campaign.getCampaignCode(),
-                baseUrl + "/join/" + campaign.getCampaignCode(),
+                frontendUrl + "/join/" + campaign.getCampaignCode(),
                 campaign.getName(),
                 campaign.getDescription(),
+                campaign.getQualifyingConditions(),
+                campaign.getIncentiveDescription(),
+                campaign.getTermsUrl(),
+                campaign.getBudgetCap(),
                 campaign.getLandingPageUrl(),
                 campaign.getStartDate(),
                 campaign.getEndDate(),

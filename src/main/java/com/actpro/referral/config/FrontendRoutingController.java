@@ -23,6 +23,7 @@ public class FrontendRoutingController {
             "/dashboard/**",
             "/ambassador/**",
             "/join/**",
+            "/refer/**",
             "/accept-invitation"
     })
     public String index() {

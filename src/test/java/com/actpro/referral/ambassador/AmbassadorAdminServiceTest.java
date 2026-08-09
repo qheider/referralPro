@@ -11,6 +11,7 @@ import com.actpro.referral.auth.InvitationPurpose;
 import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.UserStatus;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.common.EmailService;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
@@ -80,6 +81,9 @@ class AmbassadorAdminServiceTest {
     @Mock
     private CampaignAssignmentService campaignAssignmentService;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private AmbassadorAdminService ambassadorAdminService;
 
@@ -142,6 +146,8 @@ class AmbassadorAdminServiceTest {
         assertEquals("Sarah", response.ambassador().firstName());
         assertEquals(AmbassadorStatus.INVITED, response.ambassador().status());
         assertEquals("raw-invitation-token", response.invitationToken());
+
+        verify(emailService).sendAmbassadorInvitationEmail("sarah@example.com", "raw-invitation-token", "Sarah Ahmed");
     }
 
     @Test

@@ -8,6 +8,7 @@ import com.actpro.referral.referral.ReferralLinkStatus;
 import com.actpro.referral.referral.ReferralRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -26,6 +27,12 @@ public class ReferralClickService {
     private final ReferralClickRepository referralClickRepository;
     private final ReferralLinkRepository referralLinkRepository;
     private final ReferralRepository referralRepository;
+
+    // Deliberately app.frontend-url, not app.base-url: the default destination for an
+    // ambassador-link click is ReferralPro's own /refer/{token} Angular page (see recordLinkClick),
+    // not a backend endpoint - same reasoning as CampaignService's joinLink.
+    @Value("${app.frontend-url:http://localhost:4200}")
+    private String frontendUrl;
 
     /**
      * Resolves a /r/{code} token against the ambassador ReferralLink model first
@@ -64,10 +71,20 @@ public class ReferralClickService {
 
         referralLinkRepository.incrementClickCount(link.getId());
 
-        String destinationUrl = StringUtils.hasText(link.getDestinationUrl())
-                ? link.getDestinationUrl()
-                : link.getCampaign().getLandingPageUrl();
-        return appendRefParam(destinationUrl, link.getPublicToken());
+        if (StringUtils.hasText(link.getDestinationUrl())) {
+            // Explicit company-configured override - same external-redirect contract as before:
+            // append ?ref={token} for that page to capture.
+            return appendRefParam(link.getDestinationUrl(), link.getPublicToken());
+        }
+
+        // Default: ReferralPro's own registration page (Phase 4), not the campaign's external
+        // landingPageUrl - the token is already in the path, so no ?ref= needed. The session id
+        // lets that page correlate its later lead submission (see ReferralLeadController) with
+        // this click without depending on a cross-origin cookie: rp_attr_session is SameSite=Lax
+        // and set on this backend's origin, so it won't be attached to the fetch/XHR POST the
+        // frontend-origin page later makes back to the API.
+        String destinationUrl = frontendUrl + "/refer/" + link.getPublicToken();
+        return StringUtils.hasText(sessionId) ? destinationUrl + "?s=" + sessionId : destinationUrl;
     }
 
     private String recordReferralClick(String referralCode, String ipAddress, String userAgent, String refererUrl, String sessionId) {

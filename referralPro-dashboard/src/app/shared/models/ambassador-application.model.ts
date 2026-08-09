@@ -16,3 +16,13 @@ export interface AmbassadorApplicationSubmissionResponse {
   status: ApplicationStatus;
   submittedAt: string;
 }
+
+// Instant self-service registration via a campaign's join link - the account exists immediately
+// but stays unusable until the applicant clicks the onboarding email's accept-invitation link.
+export type AmbassadorStatus = 'INVITED' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+
+export interface AmbassadorRegistrationResponse {
+  ambassadorProfileId: number;
+  status: AmbassadorStatus;
+  submittedAt: string;
+}

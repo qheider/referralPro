@@ -33,10 +33,11 @@ type PageState = 'loading' | 'unavailable' | 'error' | 'open' | 'submitted';
       </div>
 
       <div *ngIf="state === 'submitted'" class="rounded-3xl bg-white p-8 text-center shadow-sm">
-        <h2 class="text-xl font-semibold text-slate-900">Application submitted</h2>
+        <h2 class="text-xl font-semibold text-slate-900">Check your email</h2>
         <p class="mt-3 text-sm text-slate-600">
-          Thanks for applying to become an ambassador for {{ campaign?.campaignName }}. The
-          {{ campaign?.companyName }} team will review your application and follow up by email.
+          You're almost set up as an ambassador for {{ campaign?.campaignName }}. We've sent a
+          verification link to your email - click it to activate your account and get your
+          personalized referral link.
         </p>
       </div>
 
@@ -96,7 +97,7 @@ type PageState = 'loading' | 'unavailable' | 'error' | 'open' | 'submitted';
 
           <div class="mt-6">
             <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700" [disabled]="isSubmitting || form.invalid">
-              {{ isSubmitting ? 'Submitting...' : 'Apply' }}
+              {{ isSubmitting ? 'Submitting...' : 'Register as an ambassador' }}
             </button>
           </div>
         </form>
@@ -164,7 +165,7 @@ export class CampaignJoinComponent implements OnInit {
     this.submitError = '';
 
     this.ambassadorApplicationService
-      .apply(this.campaign.companyId, this.campaignCode, {
+      .register(this.campaign.companyId, this.campaignCode, {
         firstName: raw.firstName ?? '',
         lastName: raw.lastName ?? '',
         email: raw.email ?? '',
@@ -180,7 +181,7 @@ export class CampaignJoinComponent implements OnInit {
           this.state = 'submitted';
         },
         error: (error: unknown) => {
-          this.submitError = extractApiErrorMessage(error, 'Unable to submit application.');
+          this.submitError = extractApiErrorMessage(error, 'Unable to submit registration.');
         }
       });
   }

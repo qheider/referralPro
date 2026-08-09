@@ -96,6 +96,25 @@
       </div>
     </div>
 
+    <div *ngIf="campaign.qualifyingConditions || campaign.incentiveDescription || campaign.termsUrl || campaign.budgetCap" class="mt-4 grid gap-4 sm:grid-cols-2">
+      <div *ngIf="campaign.qualifyingConditions" class="rounded-2xl bg-slate-50 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Qualifying conditions</p>
+        <p class="mt-2 whitespace-pre-line text-sm text-slate-900">{{ campaign.qualifyingConditions }}</p>
+      </div>
+      <div *ngIf="campaign.incentiveDescription" class="rounded-2xl bg-slate-50 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Incentive</p>
+        <p class="mt-2 whitespace-pre-line text-sm text-slate-900">{{ campaign.incentiveDescription }}</p>
+      </div>
+      <div *ngIf="campaign.termsUrl" class="rounded-2xl bg-slate-50 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Terms</p>
+        <a [href]="campaign.termsUrl" target="_blank" rel="noopener" class="mt-2 block truncate text-sm text-indigo-600 hover:underline">{{ campaign.termsUrl }}</a>
+      </div>
+      <div *ngIf="campaign.budgetCap" class="rounded-2xl bg-slate-50 p-4">
+        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Budget cap</p>
+        <p class="mt-2 text-sm text-slate-900">${{ campaign.budgetCap | number:'1.2-2' }}</p>
+      </div>
+    </div>
+
     <div class="mt-6 flex flex-wrap gap-3">
       <button
         *ngIf="canPublish"

@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../../shared/models/api-response.model';
 import {
   AmbassadorApplicationSubmissionResponse,
+  AmbassadorRegistrationResponse,
   SubmitAmbassadorApplicationRequest
 } from '../../shared/models/ambassador-application.model';
 
@@ -29,6 +30,24 @@ export class AmbassadorApplicationService {
     return this.http
       .post<ApiResponse<AmbassadorApplicationSubmissionResponse>>(url, request)
       .pipe(map(response => this.unwrapResponse(response, 'Unable to submit application.')));
+  }
+
+  // Public - no auth required. Instant self-service registration (see
+  // AmbassadorRegistrationController): unlike apply() above, the account is provisioned
+  // immediately rather than parked for admin review - only email verification gates it.
+  register(
+    companyId: number,
+    campaignCode: string | null,
+    request: SubmitAmbassadorApplicationRequest
+  ): Observable<AmbassadorRegistrationResponse> {
+    let url = `${environment.apiUrl}/ambassador-registrations?companyId=${companyId}`;
+    if (campaignCode) {
+      url += `&campaignCode=${encodeURIComponent(campaignCode)}`;
+    }
+
+    return this.http
+      .post<ApiResponse<AmbassadorRegistrationResponse>>(url, request)
+      .pipe(map(response => this.unwrapResponse(response, 'Unable to submit registration.')));
   }
 
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
