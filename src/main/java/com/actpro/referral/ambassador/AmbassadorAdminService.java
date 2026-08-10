@@ -22,6 +22,7 @@ import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.referral.ReferralStatus;
 import com.actpro.referral.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -37,6 +38,7 @@ import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AmbassadorAdminService {
 
     private static final String TOKEN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -129,7 +131,14 @@ public class AmbassadorAdminService {
         profile = ambassadorProfileRepository.save(profile);
 
         IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(user, InvitationPurpose.AMBASSADOR_ONBOARDING);
-        emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
+        // Don't let a mail-server hiccup roll back the ambassador account we just created - same
+        // pattern as CompanyService.registerCompany's verification email. The admin can always
+        // resend the invitation once mail is reachable.
+        try {
+            emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
+        } catch (Exception e) {
+            log.warn("Failed to send ambassador invitation email, but the ambassador account was created.", e);
+        }
 
         return new AmbassadorProvisioningResult(profile, invitation);
     }
@@ -147,7 +156,11 @@ public class AmbassadorAdminService {
 
         IssuedInvitationResponse invitation = accountInvitationService.issueInvitation(profile.getUser(), InvitationPurpose.AMBASSADOR_ONBOARDING);
         DashboardUser user = profile.getUser();
-        emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
+        try {
+            emailService.sendAmbassadorInvitationEmail(user.getUsername(), invitation.token(), user.getFirstName() + " " + user.getLastName());
+        } catch (Exception e) {
+            log.warn("Failed to send ambassador invitation email, but the invitation was reissued.", e);
+        }
         return invitation;
     }
 

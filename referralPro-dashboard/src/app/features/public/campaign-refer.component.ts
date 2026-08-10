@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -79,7 +79,8 @@ export class CampaignReferComponent implements OnInit {
   constructor(
     private fb: FormBuilder,
     private route: ActivatedRoute,
-    private referralLeadService: ReferralLeadService
+    private referralLeadService: ReferralLeadService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       name: ['', [Validators.required, Validators.maxLength(255)]],
@@ -112,13 +113,18 @@ export class CampaignReferComponent implements OnInit {
         name: raw.name ?? '',
         email: raw.email ?? ''
       })
-      .pipe(finalize(() => (this.isSubmitting = false)))
+      .pipe(finalize(() => {
+        this.isSubmitting = false;
+        this.cdr.markForCheck();
+      }))
       .subscribe({
         next: () => {
           this.state = 'submitted';
+          this.cdr.markForCheck();
         },
         error: (error: unknown) => {
           this.submitError = extractApiErrorMessage(error, 'Unable to submit registration.');
+          this.cdr.markForCheck();
         }
       });
   }

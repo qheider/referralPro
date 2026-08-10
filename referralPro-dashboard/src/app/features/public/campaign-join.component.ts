@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -120,7 +120,8 @@ export class CampaignJoinComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private campaignService: CampaignService,
-    private ambassadorApplicationService: AmbassadorApplicationService
+    private ambassadorApplicationService: AmbassadorApplicationService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group({
       firstName: ['', [Validators.required, Validators.maxLength(100)]],
@@ -146,10 +147,15 @@ export class CampaignJoinComponent implements OnInit {
       next: campaign => {
         this.campaign = campaign;
         this.state = campaign.enrollmentOpen ? 'open' : 'unavailable';
+        // No zone.js in this app - the HTTP response arrives outside Angular's change-detection
+        // notifications, so the state mutation above needs an explicit tick (see the same pattern
+        // in dashboard.component.ts) or the view stays stuck on the previous state.
+        this.cdr.markForCheck();
       },
       error: (error: unknown) => {
         this.state = 'error';
         this.errorMessage = extractApiErrorMessage(error, 'This campaign link is invalid or no longer available.');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -175,13 +181,18 @@ export class CampaignJoinComponent implements OnInit {
         socialMediaPlatform: raw.socialMediaPlatform || null,
         socialMediaHandle: raw.socialMediaHandle || null
       })
-      .pipe(finalize(() => (this.isSubmitting = false)))
+      .pipe(finalize(() => {
+        this.isSubmitting = false;
+        this.cdr.markForCheck();
+      }))
       .subscribe({
         next: () => {
           this.state = 'submitted';
+          this.cdr.markForCheck();
         },
         error: (error: unknown) => {
           this.submitError = extractApiErrorMessage(error, 'Unable to submit registration.');
+          this.cdr.markForCheck();
         }
       });
   }

@@ -32,6 +32,16 @@ spring:
     baseline-on-migrate: true
     locations: classpath:db/migration
 
+  # Generic SMTP relay config - EmailService (the only class in the app that touches
+  # JavaMailSender) has no provider-specific code, so today's Gmail setup and a future move to
+  # AWS SES are both just env-var swaps, not code changes:
+  #   - Gmail: smtp.gmail.com:587 with a Gmail app-password as MAIL_USERNAME/MAIL_PASSWORD.
+  #   - AWS SES (SMTP interface): email-smtp.{region}.amazonaws.com:587 with SES-generated SMTP
+  #     credentials (Console: SES > SMTP settings > Create SMTP credentials - these are distinct
+  #     from IAM access keys) as MAIL_USERNAME/MAIL_PASSWORD.
+  # Switching to SES's native API/SDK (IAM-role auth instead of long-lived SMTP creds) instead of
+  # its SMTP relay is a different transport and would need a real EmailSender abstraction - not
+  # needed for the SMTP-relay swap above.
   mail:
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:587}
