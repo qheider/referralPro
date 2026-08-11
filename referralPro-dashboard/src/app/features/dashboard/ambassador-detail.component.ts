@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AmbassadorAdminService } from '../../core/services/ambassador-admin.service';
 import { AmbassadorDetail } from '../../shared/models/ambassador.model';
@@ -10,7 +10,11 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
   standalone: true,
   imports: [CommonModule, RouterLink],
   template: `
-    <section *ngIf="ambassador" class="space-y-6">
+    <div *ngIf="errorMessage()" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+      {{ errorMessage() }}
+    </div>
+
+    <section *ngIf="ambassador() as ambassador" class="space-y-6">
       <div class="rounded-3xl bg-white p-6 shadow-sm">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
@@ -28,10 +32,6 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
         </div>
       </div>
 
-      <div *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        {{ errorMessage }}
-      </div>
-
       <div class="grid gap-4 md:grid-cols-4">
         <div class="rounded-3xl bg-white p-5 shadow-sm">
           <p class="text-sm text-slate-500">Status</p>
@@ -39,15 +39,15 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
         </div>
         <div class="rounded-3xl bg-white p-5 shadow-sm">
           <p class="text-sm text-slate-500">Assigned campaigns</p>
-          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.assignedCampaigns }}</p>
+          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.assignedCampaigns ?? 0 }}</p>
         </div>
         <div class="rounded-3xl bg-white p-5 shadow-sm">
           <p class="text-sm text-slate-500">Registrations</p>
-          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.totalRegistrations }}</p>
+          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.totalRegistrations ?? 0 }}</p>
         </div>
         <div class="rounded-3xl bg-white p-5 shadow-sm">
           <p class="text-sm text-slate-500">Successful rentals</p>
-          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.successfulRentals }}</p>
+          <p class="mt-2 text-xl font-semibold text-slate-900">{{ ambassador.successfulRentals ?? 0 }}</p>
         </div>
       </div>
 
@@ -94,14 +94,14 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
       </div>
     </section>
 
-    <div *ngIf="!ambassador && !errorMessage" class="rounded-3xl bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+    <div *ngIf="!ambassador() && !errorMessage()" class="rounded-3xl bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
       Loading ambassador...
     </div>
   `
 })
 export class AmbassadorDetailComponent implements OnInit {
-  ambassador: AmbassadorDetail | null = null;
-  errorMessage = '';
+  readonly ambassador = signal<AmbassadorDetail | null>(null);
+  readonly errorMessage = signal('');
 
   constructor(
     private route: ActivatedRoute,
@@ -113,40 +113,52 @@ export class AmbassadorDetailComponent implements OnInit {
   }
 
   activate(): void {
-    if (!this.ambassador) {
+    const current = this.ambassador();
+    if (!current) {
       return;
     }
 
-    this.ambassadorAdminService.activateAmbassador(this.ambassador.id).subscribe({
-      next: ambassador => (this.ambassador = ambassador),
+    this.ambassadorAdminService.activateAmbassador(current.id).subscribe({
+      next: ambassador => this.applyAmbassador(ambassador),
       error: error => {
-        this.errorMessage = extractApiErrorMessage(error, 'Unable to activate ambassador.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Unable to activate ambassador.'));
       }
     });
   }
 
   deactivate(): void {
-    if (!this.ambassador) {
+    const current = this.ambassador();
+    if (!current) {
       return;
     }
 
-    this.ambassadorAdminService.deactivateAmbassador(this.ambassador.id).subscribe({
-      next: ambassador => (this.ambassador = ambassador),
+    this.ambassadorAdminService.deactivateAmbassador(current.id).subscribe({
+      next: ambassador => this.applyAmbassador(ambassador),
       error: error => {
-        this.errorMessage = extractApiErrorMessage(error, 'Unable to deactivate ambassador.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Unable to deactivate ambassador.'));
       }
     });
   }
 
   private loadAmbassador(): void {
-    const ambassadorId = Number(this.route.snapshot.paramMap.get('ambassadorId'));
+    const rawId = this.route.snapshot.paramMap.get('ambassadorId');
+    const ambassadorId = Number(rawId);
+    if (!rawId || Number.isNaN(ambassadorId)) {
+      console.error('AmbassadorDetailComponent: missing/invalid ambassadorId route param', rawId);
+      this.errorMessage.set('Invalid ambassador link.');
+      return;
+    }
+
     this.ambassadorAdminService.getAmbassador(ambassadorId).subscribe({
-      next: ambassador => {
-        this.ambassador = ambassador;
-      },
+      next: ambassador => this.applyAmbassador(ambassador),
       error: error => {
-        this.errorMessage = extractApiErrorMessage(error, 'Unable to load ambassador.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Unable to load ambassador.'));
       }
     });
+  }
+
+  private applyAmbassador(ambassador: AmbassadorDetail): void {
+    this.ambassador.set({ ...ambassador, referralLinks: ambassador.referralLinks ?? [] });
+    this.errorMessage.set('');
   }
 }

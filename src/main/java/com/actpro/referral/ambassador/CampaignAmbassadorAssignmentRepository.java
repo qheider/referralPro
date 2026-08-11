@@ -5,6 +5,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +32,23 @@ public interface CampaignAmbassadorAssignmentRepository extends JpaRepository<Ca
     List<CampaignAmbassadorAssignment> findByAmbassadorUserIdAndCompanyIdAndStatus(Long ambassadorUserId, Long companyId, AssignmentStatus status);
 
     long countByAmbassadorUserIdAndCompanyIdAndStatus(Long ambassadorUserId, Long companyId, AssignmentStatus status);
+
+    // Batched form of countByAmbassadorUserIdAndCompanyIdAndStatus for a page of ambassadors -
+    // one grouped query instead of one count query per ambassador. See
+    // AmbassadorAdminService.listAmbassadors.
+    @Query("""
+            SELECT caa.ambassadorUser.id, COUNT(caa)
+            FROM CampaignAmbassadorAssignment caa
+            WHERE caa.company.id = :companyId
+              AND caa.ambassadorUser.id IN :ambassadorUserIds
+              AND caa.status = :status
+            GROUP BY caa.ambassadorUser.id
+            """)
+    List<Object[]> countByAmbassadorUserIdsAndCompanyIdAndStatusGrouped(
+            @Param("ambassadorUserIds") Collection<Long> ambassadorUserIds,
+            @Param("companyId") Long companyId,
+            @Param("status") AssignmentStatus status
+    );
 
     @Query("""
             SELECT caa

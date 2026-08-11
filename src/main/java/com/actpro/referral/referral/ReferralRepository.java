@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -30,6 +31,36 @@ public interface ReferralRepository extends JpaRepository<Referral, Long> {
     );
 
     long countByAmbassadorUserIdAndCompanyIdAndStatus(Long ambassadorUserId, Long companyId, ReferralStatus status);
+
+    // Batched forms of the two counts above for a page of ambassadors - one grouped query each
+    // instead of one count query per ambassador per stat. See AmbassadorAdminService.listAmbassadors.
+    @Query("""
+            SELECT r.ambassadorUser.id, COUNT(r)
+            FROM Referral r
+            WHERE r.company.id = :companyId
+              AND r.ambassadorUser.id IN :ambassadorUserIds
+              AND r.status IN :statuses
+            GROUP BY r.ambassadorUser.id
+            """)
+    List<Object[]> countByAmbassadorUserIdsAndCompanyIdAndStatusInGrouped(
+            @Param("ambassadorUserIds") Collection<Long> ambassadorUserIds,
+            @Param("companyId") Long companyId,
+            @Param("statuses") Collection<ReferralStatus> statuses
+    );
+
+    @Query("""
+            SELECT r.ambassadorUser.id, COUNT(r)
+            FROM Referral r
+            WHERE r.company.id = :companyId
+              AND r.ambassadorUser.id IN :ambassadorUserIds
+              AND r.status = :status
+            GROUP BY r.ambassadorUser.id
+            """)
+    List<Object[]> countByAmbassadorUserIdsAndCompanyIdAndStatusGrouped(
+            @Param("ambassadorUserIds") Collection<Long> ambassadorUserIds,
+            @Param("companyId") Long companyId,
+            @Param("status") ReferralStatus status
+    );
 
     long countByAmbassadorUserIdAndCompanyIdAndCampaignIdAndStatusIn(
             Long ambassadorUserId,

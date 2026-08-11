@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -33,8 +33,7 @@ export class IntegrationSettingsComponent implements OnInit {
 
   constructor(
     private fb: FormBuilder,
-    private companyIntegrationService: CompanyIntegrationService,
-    private cdr: ChangeDetectorRef
+    private companyIntegrationService: CompanyIntegrationService
   ) {
     this.form = this.fb.group({
       apiBaseUrl: ['', [Validators.required, Validators.maxLength(500)]],
@@ -197,11 +196,7 @@ export class IntegrationSettingsComponent implements OnInit {
     }
     navigator.clipboard.writeText(this.config.webhookUrl).then(() => {
       this.webhookUrlCopied = true;
-      setTimeout(() => {
-        this.webhookUrlCopied = false;
-        this.cdr.markForCheck();
-      }, 2000);
-      this.cdr.markForCheck();
+      setTimeout(() => (this.webhookUrlCopied = false), 2000);
     });
   }
 

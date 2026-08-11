@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
@@ -108,9 +108,7 @@ export class CampaignDetailComponent implements OnInit {
     private route: ActivatedRoute,
     private dashboardService: DashboardService,
     private campaignService: CampaignService,
-    private authService: AuthService,
-    private ngZone: NgZone,
-    private cdr: ChangeDetectorRef
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -152,11 +150,7 @@ export class CampaignDetailComponent implements OnInit {
     }
     navigator.clipboard.writeText(this.campaign.joinLink).then(() => {
       this.joinLinkCopied = true;
-      setTimeout(() => {
-        this.joinLinkCopied = false;
-        this.cdr.markForCheck();
-      }, 2000);
-      this.cdr.markForCheck();
+      setTimeout(() => (this.joinLinkCopied = false), 2000);
     });
   }
 
@@ -198,10 +192,7 @@ export class CampaignDetailComponent implements OnInit {
       this.campaignService.archiveCampaign(companyId, this.campaignId);
 
     request$
-      .pipe(finalize(() => {
-        this.isTransitioning = false;
-        this.cdr.markForCheck();
-      }))
+      .pipe(finalize(() => (this.isTransitioning = false)))
       .subscribe({
         next: campaign => {
           this.campaign = campaign;
@@ -222,11 +213,9 @@ export class CampaignDetailComponent implements OnInit {
     this.campaignService.getCampaign(companyId, campaignId).subscribe({
       next: campaign => {
         this.campaign = campaign;
-        this.cdr.markForCheck();
       },
       error: (error: unknown) => {
         this.campaignError = extractApiErrorMessage(error, 'Unable to load campaign settings.');
-        this.cdr.markForCheck();
       }
     });
   }
@@ -265,40 +254,34 @@ export class CampaignDetailComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.ngZone.run(() => {
-      forkJoin({
-        stats: this.dashboardService.getCampaignStats(campaignId),
-        funnel: this.dashboardService.getConversionFunnel(campaignId),
-        topReferrers: this.dashboardService.getTopReferrers(campaignId),
-        timeSeries: this.dashboardService.getTimeSeries(campaignId),
-        rewardSummary: this.dashboardService.getRewardSummary(campaignId)
-      })
-        .pipe(finalize(() => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }))
-        .subscribe({
-          next: result => {
-            this.stats = result.stats;
-            this.funnel = result.funnel;
-            this.topReferrers = result.topReferrers;
-            this.timeSeries = result.timeSeries;
-            this.rewardSummary = result.rewardSummary;
-            this.updateCharts();
-            this.cdr.detectChanges();
-          },
-          error: error => {
-            console.error('Campaign detail failed:', error);
-            this.errorMessage = extractApiErrorMessage(error, 'Unable to load campaign detail.');
-            this.stats = null;
-            this.funnel = null;
-            this.topReferrers = null;
-            this.timeSeries = null;
-            this.rewardSummary = null;
-            this.updateCharts();
-          }
-        });
-    });
+    forkJoin({
+      stats: this.dashboardService.getCampaignStats(campaignId),
+      funnel: this.dashboardService.getConversionFunnel(campaignId),
+      topReferrers: this.dashboardService.getTopReferrers(campaignId),
+      timeSeries: this.dashboardService.getTimeSeries(campaignId),
+      rewardSummary: this.dashboardService.getRewardSummary(campaignId)
+    })
+      .pipe(finalize(() => (this.isLoading = false)))
+      .subscribe({
+        next: result => {
+          this.stats = result.stats;
+          this.funnel = result.funnel;
+          this.topReferrers = result.topReferrers;
+          this.timeSeries = result.timeSeries;
+          this.rewardSummary = result.rewardSummary;
+          this.updateCharts();
+        },
+        error: error => {
+          console.error('Campaign detail failed:', error);
+          this.errorMessage = extractApiErrorMessage(error, 'Unable to load campaign detail.');
+          this.stats = null;
+          this.funnel = null;
+          this.topReferrers = null;
+          this.timeSeries = null;
+          this.rewardSummary = null;
+          this.updateCharts();
+        }
+      });
   }
 
   private updateCharts(): void {

@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { finalize } from 'rxjs';
@@ -32,7 +32,8 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
         <label class="space-y-2 md:col-span-2">
           <span class="text-sm font-medium text-slate-700">Search</span>
           <input
-            [(ngModel)]="search"
+            [ngModel]="search()"
+            (ngModelChange)="search.set($event)"
             type="text"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500"
             placeholder="Name, email, or display name"
@@ -43,7 +44,8 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
         <label class="space-y-2">
           <span class="text-sm font-medium text-slate-700">Status</span>
           <select
-            [(ngModel)]="status"
+            [ngModel]="status()"
+            (ngModelChange)="onStatusChange($event)"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500"
           >
             <option value="">All</option>
@@ -63,15 +65,15 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
         </button>
       </div>
 
-      <div *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-        {{ errorMessage }}
+      <div *ngIf="errorMessage()" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ errorMessage() }}
       </div>
 
-      <div *ngIf="isLoading" class="rounded-3xl bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
+      <div *ngIf="isLoading()" class="rounded-3xl bg-white p-10 text-center text-sm text-slate-500 shadow-sm">
         Loading ambassadors...
       </div>
 
-      <div *ngIf="!isLoading && page as currentPage" class="overflow-hidden rounded-3xl bg-white shadow-sm">
+      <div *ngIf="!isLoading() && page() as currentPage" class="overflow-hidden rounded-3xl bg-white shadow-sm">
         <div *ngIf="currentPage.content.length === 0" class="p-10 text-center text-sm text-slate-500">
           No ambassadors matched the current filters.
         </div>
@@ -108,10 +110,10 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
                     {{ ambassador.status }}
                   </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.assignedCampaigns }}</td>
-                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.totalRegistrations }}</td>
-                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.successfulRentals }}</td>
-                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.conversionRate | number:'1.0-2' }}%</td>
+                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.assignedCampaigns ?? 0 }}</td>
+                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.totalRegistrations ?? 0 }}</td>
+                <td class="px-6 py-4 text-sm text-slate-700">{{ ambassador.successfulRentals ?? 0 }}</td>
+                <td class="px-6 py-4 text-sm text-slate-700">{{ (ambassador.conversionRate ?? 0) | number:'1.0-2' }}%</td>
                 <td class="px-6 py-4 text-right">
                   <div class="flex justify-end gap-2">
                     <a
@@ -157,12 +159,16 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
   `
 })
 export class AmbassadorsComponent implements OnInit {
-  page: AmbassadorPageResponse | null = null;
-  isLoading = false;
-  errorMessage = '';
-  search = '';
-  status = '';
-  currentPage = 0;
+  readonly page = signal<AmbassadorPageResponse | null>(null);
+  readonly isLoading = signal(false);
+  readonly errorMessage = signal('');
+  readonly search = signal('');
+  readonly status = signal('');
+
+  private pageIndex = 0;
+  // Guards against a slower earlier response landing after a newer one and overwriting the
+  // list with results for a filter the user has already moved off of.
+  private latestRequestId = 0;
 
   constructor(private ambassadorAdminService: AmbassadorAdminService) {}
 
@@ -171,44 +177,64 @@ export class AmbassadorsComponent implements OnInit {
   }
 
   loadAmbassadors(): void {
-    this.isLoading = true;
-    this.errorMessage = '';
+    const requestId = ++this.latestRequestId;
+    this.isLoading.set(true);
+    this.errorMessage.set('');
 
     this.ambassadorAdminService
       .listAmbassadors({
-        page: this.currentPage,
-        search: this.search.trim() || undefined,
-        status: this.status || undefined,
+        page: this.pageIndex,
+        search: this.search().trim() || undefined,
+        status: this.status() || undefined,
         sort: 'createdAt,desc'
       })
-      .pipe(finalize(() => (this.isLoading = false)))
+      .pipe(
+        finalize(() => {
+          if (requestId === this.latestRequestId) {
+            this.isLoading.set(false);
+          }
+        })
+      )
       .subscribe({
         next: page => {
-          this.page = page;
-          this.currentPage = page.page;
+          if (requestId !== this.latestRequestId) {
+            return;
+          }
+
+          this.page.set({ ...page, content: page.content ?? [] });
+          this.pageIndex = page.page;
         },
         error: error => {
-          this.errorMessage = extractApiErrorMessage(error, 'Unable to load ambassadors.');
-          this.page = null;
+          if (requestId !== this.latestRequestId) {
+            return;
+          }
+
+          this.errorMessage.set(extractApiErrorMessage(error, 'Unable to load ambassadors.'));
+          this.page.set(null);
         }
       });
   }
 
   goToPage(page: number): void {
-    this.currentPage = page;
+    this.pageIndex = page;
     this.loadAmbassadors();
   }
 
   applyFilters(): void {
-    this.currentPage = 0;
+    this.pageIndex = 0;
     this.loadAmbassadors();
+  }
+
+  onStatusChange(status: string): void {
+    this.status.set(status);
+    this.applyFilters();
   }
 
   activate(ambassador: AmbassadorSummary): void {
     this.ambassadorAdminService.activateAmbassador(ambassador.id).subscribe({
       next: () => this.loadAmbassadors(),
       error: error => {
-        this.errorMessage = extractApiErrorMessage(error, 'Unable to activate ambassador.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Unable to activate ambassador.'));
       }
     });
   }
@@ -217,7 +243,7 @@ export class AmbassadorsComponent implements OnInit {
     this.ambassadorAdminService.deactivateAmbassador(ambassador.id).subscribe({
       next: () => this.loadAmbassadors(),
       error: error => {
-        this.errorMessage = extractApiErrorMessage(error, 'Unable to deactivate ambassador.');
+        this.errorMessage.set(extractApiErrorMessage(error, 'Unable to deactivate ambassador.'));
       }
     });
   }

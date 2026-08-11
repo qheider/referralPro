@@ -5,11 +5,13 @@ import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.common.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/admin/ambassadors")
 @RequiredArgsConstructor
@@ -47,7 +49,9 @@ public class AmbassadorAdminController {
 
     @GetMapping("/{ambassadorId}")
     public ResponseEntity<ApiResponse<AmbassadorDetailResponse>> getAmbassador(@PathVariable Long ambassadorId) {
+        log.info("GET /api/admin/ambassadors/{} called", ambassadorId);
         AmbassadorDetailResponse response = ambassadorAdminService.getAmbassador(ambassadorId);
+        log.info("Returning ambassador detail for ID: {}", ambassadorId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

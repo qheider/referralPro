@@ -26,7 +26,7 @@ public interface AmbassadorProfileRepository extends JpaRepository<AmbassadorPro
             value = """
                     SELECT ap
                     FROM AmbassadorProfile ap
-                    JOIN ap.user u
+                    JOIN FETCH ap.user u
                     WHERE ap.company.id = :companyId
                       AND (:status IS NULL OR ap.status = :status)
                       AND (

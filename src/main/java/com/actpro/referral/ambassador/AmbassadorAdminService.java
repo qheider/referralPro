@@ -33,8 +33,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -191,16 +193,29 @@ public class AmbassadorAdminService {
 
     @Transactional(readOnly = true)
     public AmbassadorPageResponse listAmbassadors(int page, int size, String sort, String search, AmbassadorStatus status) {
+        Long companyId = currentUserService.getCurrentCompanyId();
         Pageable pageable = PageRequest.of(page, size, parseSort(sort));
         Page<AmbassadorProfile> result = ambassadorProfileRepository.searchByCompanyId(
-                currentUserService.getCurrentCompanyId(),
+                companyId,
                 normalizeSearch(search),
                 status,
                 pageable
         );
 
+        // Batch the per-ambassador stat counts for the whole page into 3 grouped queries instead
+        // of the 3-per-row (buildStats) queries toSummary/toDetail use for a single profile - this
+        // page previously fired up to size*3 sequential count queries, which was the cause of the
+        // slow load reported against a company with a non-trivial number of ambassadors.
+        List<Long> ambassadorUserIds = result.getContent().stream()
+                .map(profile -> profile.getUser().getId())
+                .toList();
+        Map<Long, AmbassadorStats> statsByUserId = buildStatsMap(ambassadorUserIds, companyId);
+
         List<AmbassadorSummaryResponse> content = result.getContent().stream()
-                .map(this::toSummary)
+                .map(profile -> toSummary(profile, statsByUserId.getOrDefault(
+                        profile.getUser().getId(),
+                        AmbassadorStats.EMPTY
+                )))
                 .toList();
 
         return new AmbassadorPageResponse(
@@ -265,7 +280,10 @@ public class AmbassadorAdminService {
     }
 
     AmbassadorSummaryResponse toSummary(AmbassadorProfile profile) {
-        AmbassadorStats stats = buildStats(profile.getUser().getId(), profile.getCompany().getId());
+        return toSummary(profile, buildStats(profile.getUser().getId(), profile.getCompany().getId()));
+    }
+
+    private AmbassadorSummaryResponse toSummary(AmbassadorProfile profile, AmbassadorStats stats) {
         return new AmbassadorSummaryResponse(
                 profile.getId(),
                 profile.getUser().getId(),
@@ -325,6 +343,62 @@ public class AmbassadorAdminService {
                 referralLink.getClickCount(),
                 referralLink.getExpiresAt()
         );
+    }
+
+    private Map<Long, AmbassadorStats> buildStatsMap(List<Long> ambassadorUserIds, Long companyId) {
+        if (ambassadorUserIds.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Long, Long> assignedCampaignsByUserId = groupCountsByUserId(
+                assignmentRepository.countByAmbassadorUserIdsAndCompanyIdAndStatusGrouped(
+                        ambassadorUserIds, companyId, AssignmentStatus.ACTIVE
+                )
+        );
+        Map<Long, Long> totalRegistrationsByUserId = groupCountsByUserId(
+                referralRepository.countByAmbassadorUserIdsAndCompanyIdAndStatusInGrouped(
+                        ambassadorUserIds,
+                        companyId,
+                        List.of(
+                                ReferralStatus.REGISTERED,
+                                ReferralStatus.BOOKING_STARTED,
+                                ReferralStatus.BOOKING_CONFIRMED,
+                                ReferralStatus.RENTAL_STARTED,
+                                ReferralStatus.COMPLETED
+                        )
+                )
+        );
+        Map<Long, Long> successfulRentalsByUserId = groupCountsByUserId(
+                referralRepository.countByAmbassadorUserIdsAndCompanyIdAndStatusGrouped(
+                        ambassadorUserIds, companyId, ReferralStatus.COMPLETED
+                )
+        );
+
+        Map<Long, AmbassadorStats> statsByUserId = new HashMap<>();
+        for (Long userId : ambassadorUserIds) {
+            long assignedCampaigns = assignedCampaignsByUserId.getOrDefault(userId, 0L);
+            long totalRegistrations = totalRegistrationsByUserId.getOrDefault(userId, 0L);
+            long successfulRentals = successfulRentalsByUserId.getOrDefault(userId, 0L);
+            double conversionRate = totalRegistrations == 0
+                    ? 0.0
+                    : (successfulRentals * 100.0) / totalRegistrations;
+
+            statsByUserId.put(userId, new AmbassadorStats(
+                    assignedCampaigns,
+                    totalRegistrations,
+                    successfulRentals,
+                    Math.round(conversionRate * 100.0) / 100.0
+            ));
+        }
+        return statsByUserId;
+    }
+
+    private Map<Long, Long> groupCountsByUserId(List<Object[]> rows) {
+        Map<Long, Long> counts = new HashMap<>();
+        for (Object[] row : rows) {
+            counts.put((Long) row[0], (Long) row[1]);
+        }
+        return counts;
     }
 
     private AmbassadorStats buildStats(Long ambassadorUserId, Long companyId) {
@@ -461,5 +535,6 @@ public class AmbassadorAdminService {
             long successfulRentals,
             double conversionRate
     ) {
+        static final AmbassadorStats EMPTY = new AmbassadorStats(0, 0, 0, 0.0);
     }
 }

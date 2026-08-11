@@ -73,7 +73,7 @@ export class AmbassadorAdminService {
   }
 
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
-    if (!response.success || response.data === undefined) {
+    if (!response.success || response.data === undefined || response.data === null) {
       throw new Error(response.message || fallbackMessage);
     }
 
