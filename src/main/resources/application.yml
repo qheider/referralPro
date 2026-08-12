@@ -7,6 +7,13 @@ spring:
     password: ${DATABASE_PASSWORD:referral_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+  web:
+    resources:
+      # Serve static files from Angular dist folder
+      static-locations: classpath:/static/
+      cache:
+        period: 31536000  # Cache for 1 year
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -14,13 +21,39 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-    show-sql: true
+    # Never bound parameter values, only the SQL template - but still real per-statement I/O noise
+    # duplicated on stdout regardless of the org.hibernate.SQL logger level below, so it's off by
+    # default (Phase 9 hardening) and opt-in via SHOW_SQL for local debugging.
+    show-sql: ${SHOW_SQL:false}
     open-in-view: false
 
   flyway:
     enabled: true
     baseline-on-migrate: true
     locations: classpath:db/migration
+
+  # Generic SMTP relay config - EmailService (the only class in the app that touches
+  # JavaMailSender) has no provider-specific code, so today's Gmail setup and a future move to
+  # AWS SES are both just env-var swaps, not code changes:
+  #   - Gmail: smtp.gmail.com:587 with a Gmail app-password as MAIL_USERNAME/MAIL_PASSWORD.
+  #   - AWS SES (SMTP interface): email-smtp.{region}.amazonaws.com:587 with SES-generated SMTP
+  #     credentials (Console: SES > SMTP settings > Create SMTP credentials - these are distinct
+  #     from IAM access keys) as MAIL_USERNAME/MAIL_PASSWORD.
+  # Switching to SES's native API/SDK (IAM-role auth instead of long-lived SMTP creds) instead of
+  # its SMTP relay is a different transport and would need a real EmailSender abstraction - not
+  # needed for the SMTP-relay swap above.
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
 
 server:
   port: 8080
@@ -30,12 +63,52 @@ server:
 
 app:
   base-url: ${APP_BASE_URL:http://localhost:8080}
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:4200}
   jwt:
     secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:120}
+  mail:
+    from: ${MAIL_FROM:noreply@referralpro.com}
+    enabled: ${MAIL_ENABLED:true}
+  outbox:
+    dispatch-enabled: ${OUTBOX_DISPATCH_ENABLED:true}
+    dispatch-interval-ms: ${OUTBOX_DISPATCH_INTERVAL_MS:5000}
+    batch-size: ${OUTBOX_BATCH_SIZE:50}
+    max-attempts: ${OUTBOX_MAX_ATTEMPTS:5}
+  campaign:
+    expiration-enabled: ${CAMPAIGN_EXPIRATION_ENABLED:true}
+    expiration-interval-ms: ${CAMPAIGN_EXPIRATION_INTERVAL_MS:60000}
+  integration:
+    # AES-256-GCM key for CredentialEncryptionService (outgoing integration credentials/webhook
+    # signing secrets). The default below is dev-only and insecure - real deployments MUST
+    # override via env var. Generate with: openssl rand -base64 32. Rotating this after
+    # credentials are stored makes existing encrypted rows undecryptable (no key-rotation/
+    # re-encryption tooling exists yet).
+    encryption-key: ${INTEGRATION_ENCRYPTION_KEY:dev-only-insecure-integration-key-change-me}
+    dispatch-enabled: ${INTEGRATION_DISPATCH_ENABLED:true}
+    dispatch-interval-ms: ${INTEGRATION_DISPATCH_INTERVAL_MS:5000}
+    batch-size: ${INTEGRATION_BATCH_SIZE:50}
+    # Fallback only, used by ApiSubmissionService if a submission is ever created before a
+    # CompanyIntegration row exists (defensive - shouldn't happen in practice since Phase 2 seeds
+    # one at registration). CompanyIntegration.maxRetryAttempts (per-company, DB default 5) is the
+    # value actually snapshotted onto each ApiSubmission in the normal case.
+    default-max-retry-attempts: ${INTEGRATION_DEFAULT_MAX_RETRY_ATTEMPTS:5}
+  webhook:
+    # How far a webhook's X-Luup-Timestamp may drift from server time (either direction) before
+    # WebhookSignatureVerifier rejects it as stale - reduces replay risk per the spec.
+    timestamp-tolerance-seconds: ${WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:300}
+    default-max-attempts: ${WEBHOOK_DEFAULT_MAX_ATTEMPTS:5}
+    dispatch-enabled: ${WEBHOOK_DISPATCH_ENABLED:true}
+    dispatch-interval-ms: ${WEBHOOK_DISPATCH_INTERVAL_MS:5000}
+    batch-size: ${WEBHOOK_BATCH_SIZE:50}
 
 logging:
   level:
-    com.actpro.referral: DEBUG
-    org.springframework.security: DEBUG
-    org.hibernate.SQL: DEBUG
+    # Phase 9 hardening: these previously shipped hardcoded at DEBUG - fine for local development,
+    # too noisy (and, for org.springframework.security, more per-request filter-chain/path detail
+    # than a shipped default should emit) for a release-ready default. Now INFO/WARN by default,
+    # each independently raisable back to DEBUG per environment via these env vars without a code
+    # change or a separate profile file.
+    com.actpro.referral: ${LOG_LEVEL_APP:INFO}
+    org.springframework.security: ${LOG_LEVEL_SECURITY:WARN}
+    org.hibernate.SQL: ${LOG_LEVEL_SQL:WARN}

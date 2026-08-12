@@ -1,0 +1,22 @@
+CREATE TABLE ambassador_profiles (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    company_id BIGINT NOT NULL,
+    display_name VARCHAR(255),
+    phone VARCHAR(50),
+    bio TEXT,
+    social_media_handle VARCHAR(255),
+    social_media_platform VARCHAR(100),
+    profile_image_url VARCHAR(500),
+    ambassador_code VARCHAR(50) NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'INVITED',
+    joined_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_ambassador_profiles_user FOREIGN KEY (user_id) REFERENCES dashboard_users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ambassador_profiles_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT uk_ambassador_profiles_user_id UNIQUE (user_id),
+    CONSTRAINT uk_ambassador_profiles_code UNIQUE (ambassador_code),
+    INDEX idx_ambassador_profiles_company_id (company_id),
+    INDEX idx_ambassador_profiles_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

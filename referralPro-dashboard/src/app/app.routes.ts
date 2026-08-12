@@ -1,7 +1,12 @@
 import { Routes } from '@angular/router';
+import { ambassadorGuard } from './core/guards/ambassador.guard';
 import { authGuard } from './core/guards/auth.guard';
+import { companyAdminGuard } from './core/guards/company-admin.guard';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
+import { VerifyEmailComponent } from './features/auth/verify-email.component';
+import { CampaignJoinComponent } from './features/public/campaign-join.component';
+import { CampaignReferComponent } from './features/public/campaign-refer.component';
 
 export const routes: Routes = [
   {
@@ -13,9 +18,29 @@ export const routes: Routes = [
     component: RegisterComponent
   },
   {
+    path: 'verify-email',
+    component: VerifyEmailComponent
+  },
+  {
+    // Public campaign join link (Phase 3): /join/{campaignCode}
+    path: 'join/:campaignCode',
+    component: CampaignJoinComponent
+  },
+  {
+    // Public end-user registration page a referred visitor lands on after clicking an
+    // ambassador's /r/{token} link (Phase 4) - see ReferralClickService's redirect default.
+    path: 'refer/:token',
+    component: CampaignReferComponent
+  },
+  {
     path: 'dashboard',
     loadChildren: () => import('./features/dashboard/dashboard.routes').then(m => m.dashboardRoutes),
-    canActivate: [authGuard]
+    canActivate: [authGuard, companyAdminGuard]
+  },
+  {
+    path: 'ambassador',
+    loadChildren: () => import('./features/ambassador/ambassador.routes').then(m => m.ambassadorRoutes),
+    canActivate: [authGuard, ambassadorGuard]
   },
   {
     path: '',

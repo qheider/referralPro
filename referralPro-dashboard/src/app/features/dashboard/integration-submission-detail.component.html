@@ -1,0 +1,91 @@
+<div class="mx-auto max-w-5xl space-y-6">
+  <section class="rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-900 to-indigo-700 p-6 text-white shadow-sm sm:p-8">
+    <a routerLink="/dashboard/integration/submissions" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-100 transition-colors hover:text-white">
+      <span aria-hidden="true">←</span>
+      Back to submissions
+    </a>
+    <h2 class="mt-4 text-3xl font-semibold sm:text-4xl">Submission #{{ submission?.id ?? '' }}</h2>
+  </section>
+
+  <section *ngIf="errorMessage" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+    {{ errorMessage }}
+  </section>
+
+  <section *ngIf="isLoading" class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+    <p class="text-sm font-medium text-slate-600">Loading submission detail...</p>
+  </section>
+
+  <ng-container *ngIf="!isLoading && submission">
+    <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
+          <p class="mt-2 text-sm text-slate-900">{{ submission.status }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Referral</p>
+          <p class="mt-2 text-sm text-slate-900">#{{ submission.referralId }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Attempts</p>
+          <p class="mt-2 text-sm text-slate-900">{{ submission.attemptCount }} / {{ submission.maxAttempts }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">External request id</p>
+          <p class="mt-2 text-sm text-slate-900">{{ submission.externalRequestId }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Company customer reference</p>
+          <p class="mt-2 text-sm text-slate-900">{{ submission.companyCustomerReference || '—' }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 p-4">
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Company transaction reference</p>
+          <p class="mt-2 text-sm text-slate-900">{{ submission.companyTransactionReference || '—' }}</p>
+        </div>
+      </div>
+      <div *ngIf="submission.lastError" class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        {{ submission.lastError }}
+      </div>
+    </section>
+
+    <section class="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
+      <h3 class="text-lg font-semibold text-slate-900">Attempt history</h3>
+      <div class="mt-4 overflow-x-auto">
+        <table class="w-full min-w-[640px] text-left text-sm">
+          <thead>
+            <tr class="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <th class="pb-3 pr-4">#</th>
+              <th class="pb-3 pr-4">Started</th>
+              <th class="pb-3 pr-4">Outcome</th>
+              <th class="pb-3 pr-4">HTTP status</th>
+              <th class="pb-3 pr-4">Failure category</th>
+              <th class="pb-3 pr-4">Message</th>
+              <th class="pb-3">Next retry</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let attempt of submission.attempts" class="border-b border-slate-100 last:border-0">
+              <td class="py-3 pr-4 text-slate-700">{{ attempt.attemptNumber }}</td>
+              <td class="py-3 pr-4 text-slate-500">{{ attempt.startedAt }}</td>
+              <td class="py-3 pr-4">
+                <span
+                  class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide"
+                  [ngClass]="attempt.outcome === 'SUCCESS' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'"
+                >
+                  {{ attempt.outcome }}
+                </span>
+              </td>
+              <td class="py-3 pr-4 text-slate-700">{{ attempt.httpStatus ?? '—' }}</td>
+              <td class="py-3 pr-4 text-slate-500">{{ attempt.failureCategory ?? '—' }}</td>
+              <td class="py-3 pr-4 text-slate-500">{{ attempt.sanitizedMessage || '—' }}</td>
+              <td class="py-3 text-slate-500">{{ attempt.nextRetryAt || '—' }}</td>
+            </tr>
+            <tr *ngIf="submission.attempts.length === 0">
+              <td colspan="7" class="py-6 text-center text-sm text-slate-500">No delivery attempts yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </ng-container>
+</div>

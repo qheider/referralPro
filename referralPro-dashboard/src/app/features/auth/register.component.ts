@@ -232,7 +232,16 @@ export class RegisterComponent {
       .subscribe({
         next: (response: any) => {
           console.log('Registration successful', response);
-          alert(`Registration successful! Your API Key: ${response.data.apiKey}`);
+          // Login is blocked until the admin account is email-verified. There is no email
+          // delivery worker yet, so the backend returns the verification token directly here
+          // (same temporary pattern used for ambassador invitations) - surface it so the flow
+          // isn't a dead end. Replace with a real "check your email" message once one exists.
+          alert(
+            `Registration successful! Your API Key: ${response.data.apiKey}\n\n` +
+            `Before you can log in, verify your admin email using this one-time token ` +
+            `(expires ${response.data.emailVerificationTokenExpiresAt}):\n` +
+            `${response.data.emailVerificationToken}`
+          );
           this.router.navigate(['/login']);
         },
         error: (error) => {

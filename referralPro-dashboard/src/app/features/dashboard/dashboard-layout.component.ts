@@ -36,14 +36,24 @@ export class DashboardLayoutComponent implements OnInit {
       description: 'Campaign overview and drill-down'
     },
     {
+      label: 'Ambassadors',
+      route: '/dashboard/ambassadors',
+      description: 'Manage ambassador accounts'
+    },
+    {
+      label: 'Integration',
+      route: '/dashboard/integration',
+      description: 'Company API integration configuration and delivery monitoring'
+    },
+    {
       label: 'Analytics',
       description: 'Deep analytics routes in phase 7',
       disabled: true
     },
     {
       label: 'Rewards',
-      description: 'Reward reporting in phase 7',
-      disabled: true
+      route: '/dashboard/rewards',
+      description: 'Ambassador reward monitoring and payout lifecycle'
     }
   ];
 
@@ -101,8 +111,58 @@ export class DashboardLayoutComponent implements OnInit {
   }
 
   private syncPageTitle(url: string): void {
+    if (url.includes('/dashboard/ambassadors/new')) {
+      this.currentPageTitle = 'New ambassador';
+      return;
+    }
+
+    if (url.includes('/dashboard/ambassadors/') && url.includes('/edit')) {
+      this.currentPageTitle = 'Edit ambassador';
+      return;
+    }
+
+    if (url.includes('/dashboard/ambassadors/')) {
+      this.currentPageTitle = 'Ambassador detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/campaigns/new')) {
+      this.currentPageTitle = 'New campaign';
+      return;
+    }
+
+    if (url.includes('/revenue-report')) {
+      this.currentPageTitle = 'Campaign revenue report';
+      return;
+    }
+
     if (url.includes('/dashboard/campaigns/')) {
       this.currentPageTitle = 'Campaign detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/submissions/')) {
+      this.currentPageTitle = 'Submission detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/submissions')) {
+      this.currentPageTitle = 'Delivery monitoring';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/webhook-events/')) {
+      this.currentPageTitle = 'Webhook event detail';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration/webhook-events')) {
+      this.currentPageTitle = 'Webhook events';
+      return;
+    }
+
+    if (url.includes('/dashboard/integration')) {
+      this.currentPageTitle = 'Integration';
       return;
     }
 

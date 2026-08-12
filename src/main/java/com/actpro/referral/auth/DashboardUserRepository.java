@@ -12,6 +12,9 @@ public interface DashboardUserRepository extends JpaRepository<DashboardUser, Lo
     @Query("SELECT u FROM DashboardUser u LEFT JOIN FETCH u.company WHERE u.username = :username")
     Optional<DashboardUser> findByUsernameWithCompany(String username);
 
+    @Query("SELECT u FROM DashboardUser u LEFT JOIN FETCH u.company WHERE u.id = :id")
+    Optional<DashboardUser> findByIdWithCompany(Long id);
+
     Optional<DashboardUser> findByUsername(String username);
 
     boolean existsByUsername(String username);

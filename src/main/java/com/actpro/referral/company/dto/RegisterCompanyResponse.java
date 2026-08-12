@@ -1,15 +1,15 @@
 package com.actpro.referral.company.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.time.LocalDateTime;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-public class RegisterCompanyResponse {
-    private Long companyId;
-    private String name;
-    private String apiKey;
-    private String adminEmail;
+public record RegisterCompanyResponse(
+        Long companyId,
+        String name,
+        String apiKey,
+        String adminEmail,
+        // Returned directly because there is no email delivery worker yet (see Phase 13 of
+        // phases_tracker.txt) - once one exists, this should be emailed instead of returned here.
+        String emailVerificationToken,
+        LocalDateTime emailVerificationTokenExpiresAt
+) {
 }

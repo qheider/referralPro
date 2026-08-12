@@ -1,47 +1,48 @@
 package com.actpro.referral.referral;
 
 import com.actpro.referral.click.ReferralClickService;
-import com.actpro.referral.common.exception.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.servlet.view.RedirectView;
+
+import java.time.Duration;
+import java.util.UUID;
 
 @Tag(name = "Referral Redirect", description = "Public referral link redirect")
 @Controller
 @RequiredArgsConstructor
 public class ReferralRedirectController {
 
+    private static final Duration ATTRIBUTION_COOKIE_MAX_AGE = Duration.ofDays(30);
+
     private final ReferralClickService referralClickService;
-    private final ReferralRepository referralRepository;
 
     @Operation(
             summary = "Referral redirect",
-            description = "Public endpoint to track clicks and redirect to campaign landing page"
+            description = "Public endpoint to track clicks and redirect to campaign landing page. " +
+                    "Accepts both ambassador referral-link tokens and legacy referral codes."
     )
-    @GetMapping("/r/{referralCode}")
+    @GetMapping("/r/{code}")
     public RedirectView handleReferralRedirect(
-            @PathVariable String referralCode,
-            HttpServletRequest request) {
+            @PathVariable String code,
+            HttpServletRequest request,
+            HttpServletResponse response) {
 
-        // Find referral with campaign eagerly loaded
-        Referral referral = referralRepository.findByReferralCodeWithCampaign(referralCode)
-                .orElseThrow(() -> new NotFoundException("Referral code not found"));
-
-        // Get IP and user agent
         String ipAddress = getClientIp(request);
         String userAgent = request.getHeader("User-Agent");
+        String refererUrl = request.getHeader("Referer");
+        String sessionId = resolveSessionId(request, response);
 
-        // Record click
-        referralClickService.recordClick(referral, ipAddress, userAgent);
-
-        // Redirect to landing page with referral code
-        String landingPageUrl = referral.getCampaign().getLandingPageUrl();
-        String redirectUrl = landingPageUrl + (landingPageUrl.contains("?") ? "&" : "?") + "ref=" + referralCode;
+        String redirectUrl = referralClickService.resolveAndRecordClick(code, ipAddress, userAgent, refererUrl, sessionId);
 
         return new RedirectView(redirectUrl);
     }
@@ -52,5 +53,26 @@ public class ReferralRedirectController {
             return xForwardedFor.split(",")[0].trim();
         }
         return request.getRemoteAddr();
+    }
+
+    private String resolveSessionId(HttpServletRequest request, HttpServletResponse response) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for (Cookie cookie : cookies) {
+                if (AttributionSession.COOKIE_NAME.equals(cookie.getName()) && AttributionSession.isValid(cookie.getValue())) {
+                    return cookie.getValue();
+                }
+            }
+        }
+
+        String sessionId = UUID.randomUUID().toString();
+        ResponseCookie cookie = ResponseCookie.from(AttributionSession.COOKIE_NAME, sessionId)
+                .httpOnly(true)
+                .path("/")
+                .maxAge(ATTRIBUTION_COOKIE_MAX_AGE)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+        return sessionId;
     }
 }

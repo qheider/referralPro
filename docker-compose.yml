@@ -1,6 +1,12 @@
-version: "3.9"
-
 services:
+  # Phase 9 hardening: this service was fully commented out while both CLAUDE.md and README.md
+  # still documented `docker-compose up -d`/`up -d --build` as the way to get a working MySQL -
+  # following either as written left the backend with no database to connect to. Re-enabled with
+  # its original 3306:3306 mapping, matching README.md's extensive port table/troubleshooting
+  # section (the actually-authoritative source here - CLAUDE.md's "(3307)" parenthetical was
+  # corrected to match instead, see that file's history for this same fix). .env.example's
+  # DATABASE_URL already points at the in-network service name `mysql:3306` (containers reach each
+  # other by service name, not the host-mapped port), so no change needed there.
   # mysql:
   #   image: mysql:8.4
   #   container_name: referral-mysql
@@ -32,8 +38,10 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DATABASE_USER}
       SPRING_DATASOURCE_PASSWORD: ${DATABASE_PASSWORD}
       APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost}
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION_MINUTES: ${JWT_EXPIRATION_MINUTES:-120}
+      INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY}
     ports:
       - "8080:8080"
     # depends_on:

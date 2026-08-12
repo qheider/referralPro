@@ -194,6 +194,32 @@ export class AuthService {
     return this.currentUserSubject.value;
   }
 
+  hasRole(role: string): boolean {
+    return this.getCurrentUserValue()?.role === role;
+  }
+
+  /**
+   * Verify email with token from registration
+   */
+  verifyEmail(token: string): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${environment.apiUrl}/auth/verify-email`, { token })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Email verification failed')),
+        catchError(error => {
+          console.error('Email verification failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  getDefaultRoute(): string {
+    return this.getDefaultRouteForRole(this.getCurrentUserValue()?.role);
+  }
+
+  getDefaultRouteForRole(role?: string | null): string {
+    return role === 'AMBASSADOR' ? '/ambassador' : '/dashboard';
+  }
+
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
     if (!response.success || response.data === undefined) {
       throw new Error(response.message || fallbackMessage);

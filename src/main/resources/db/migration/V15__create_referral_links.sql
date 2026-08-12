@@ -1,0 +1,23 @@
+CREATE TABLE referral_links (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    company_id BIGINT NOT NULL,
+    campaign_id BIGINT NOT NULL,
+    ambassador_user_id BIGINT NOT NULL,
+    assignment_id BIGINT NOT NULL,
+    public_token VARCHAR(64) NOT NULL,
+    destination_url VARCHAR(500),
+    status VARCHAR(50) NOT NULL DEFAULT 'ACTIVE',
+    click_count BIGINT NOT NULL DEFAULT 0,
+    expires_at TIMESTAMP NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_referral_links_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+    CONSTRAINT fk_referral_links_campaign FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+    CONSTRAINT fk_referral_links_ambassador FOREIGN KEY (ambassador_user_id) REFERENCES dashboard_users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_referral_links_assignment FOREIGN KEY (assignment_id) REFERENCES campaign_ambassador_assignments(id) ON DELETE CASCADE,
+    CONSTRAINT uk_referral_links_public_token UNIQUE (public_token),
+    CONSTRAINT uk_referral_links_campaign_ambassador UNIQUE (campaign_id, ambassador_user_id),
+    INDEX idx_referral_links_company_id (company_id),
+    INDEX idx_referral_links_assignment_id (assignment_id),
+    INDEX idx_referral_links_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

@@ -16,7 +16,7 @@ export class LoginComponent implements OnInit {
   loginForm!: FormGroup;
   isLoading = false;
   errorMessage = '';
-  returnUrl = '/dashboard';
+  returnUrl: string | null = null;
 
   constructor(
     private fb: FormBuilder,
@@ -33,12 +33,11 @@ export class LoginComponent implements OnInit {
       rememberMe: [false]
     });
 
-    // Get return URL from route parameters or default to '/dashboard'
-    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || '/dashboard';
+    this.returnUrl = this.route.snapshot.queryParams['returnUrl'] || null;
 
-    // Redirect to dashboard if already logged in
+    // Redirect to the appropriate area if already logged in
     if (this.authService.isAuthenticated()) {
-      this.router.navigate([this.returnUrl]);
+      this.router.navigate([this.returnUrl || this.authService.getDefaultRoute()]);
     }
   }
 
@@ -60,11 +59,10 @@ export class LoginComponent implements OnInit {
     };
 
     this.authService.login(credentials).subscribe({
-      next: () => {
+      next: (response) => {
         this.isLoading = false;
-        
-        // Navigate to return URL or dashboard
-        this.router.navigate([this.returnUrl]);
+
+        this.router.navigate([this.returnUrl || this.authService.getDefaultRouteForRole(response.role)]);
       },
       error: (error) => {
         this.isLoading = false;

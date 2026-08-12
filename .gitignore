@@ -37,3 +37,8 @@ build/
 .env
 .env.local
 .env.*.local
+.env.*
+
+### Claude Code ###
+CLAUDE.local.md
+.claude/settings.local.json

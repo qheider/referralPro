@@ -23,9 +23,6 @@ public class Company extends BaseEntity {
     @Column(nullable = false)
     private CompanyStatus status = CompanyStatus.ACTIVE;
 
-    @Column(name = "api_key", nullable = false, unique = true)
-    private String apiKey;
-
     // Company Details
     private String website;
 

@@ -2,7 +2,7 @@ package com.actpro.referral.security;
 
 import com.actpro.referral.common.ErrorResponse;
 import com.actpro.referral.company.Company;
-import com.actpro.referral.company.CompanyRepository;
+import com.actpro.referral.company.CompanyApiKeyService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -28,7 +28,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
-    private final CompanyRepository companyRepository;
+    private final CompanyApiKeyService companyApiKeyService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -52,9 +52,9 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
             filterChain.doFilter(request, response);
             return;
         }
-        
+
         // Skip if already authenticated (JWT filter may have already authenticated)
-        if (SecurityContextHolder.getContext().getAuthentication() != null && 
+        if (SecurityContextHolder.getContext().getAuthentication() != null &&
             SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
             log.debug("Already authenticated, skipping API key authentication");
             filterChain.doFilter(request, response);
@@ -64,24 +64,23 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         // Extract API key from Authorization header
         String authHeader = request.getHeader("Authorization");
         if (authHeader == null || !authHeader.startsWith("ApiKey ")) {
-            log.warn("cl header for path: {}", path);
+            log.warn("Missing or malformed Authorization header for path: {}", path);
             sendUnauthorizedResponse(response, "Missing or invalid API key");
             return;
         }
 
         String apiKey = authHeader.substring(7); // Remove "ApiKey " prefix
-        log.debug("Extracted API key: {}...", apiKey.substring(0, Math.min(10, apiKey.length())));
 
-        // Find company by API key
-        Optional<Company> companyOpt = companyRepository.findByApiKey(apiKey);
+        // Resolve company from the key's hash - never log the raw key itself
+        Optional<Company> companyOpt = companyApiKeyService.resolveActiveCompany(apiKey);
         if (companyOpt.isEmpty()) {
-            log.warn("Invalid API key: {}", apiKey);
+            log.warn("Invalid or inactive API key presented for path: {}", path);
             sendUnauthorizedResponse(response, "Invalid API key");
             return;
         }
 
         Company company = companyOpt.get();
-        log.info("Authenticated company: {} (ID: {})", company.getName(), company.getId());
+        log.info("Authenticated company ID: {}", company.getId());
 
         // Store company in context
         CompanyContext.setCurrentCompany(company);
@@ -90,12 +89,12 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         PreAuthenticatedAuthenticationToken authentication =
                 new PreAuthenticatedAuthenticationToken(
                         company.getId(),
-                        apiKey,
+                        null,
                         Collections.singletonList(new SimpleGrantedAuthority("ROLE_COMPANY"))
                 );
         authentication.setAuthenticated(true);
         SecurityContextHolder.getContext().setAuthentication(authentication);
-        log.debug("Set authentication in SecurityContext: {}", authentication);
+        log.debug("Set authentication in SecurityContext for company id: {}", company.getId());
 
         try {
             filterChain.doFilter(request, response);
@@ -110,15 +109,51 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         return path.startsWith("/api/companies/register") ||
                 path.startsWith("/api/auth/login") ||
                 path.startsWith("/api/auth/hash") ||
+                path.startsWith("/api/auth/accept-invitation") ||
+                path.startsWith("/api/auth/verify-email") ||
+                // Kept in sync with SecurityConfig's permitAll matchers - this filter runs ahead
+                // of Spring Security's AuthorizationFilter, so a path missing here 401s before
+                // permitAll ever gets a say, regardless of what SecurityConfig allows.
+                path.equals("/api/ambassador-applications/apply") ||
+                (path.startsWith("/api/referral-links/") && path.endsWith("/leads")) ||
+                path.startsWith("/api/campaigns/join/") ||
+                (path.startsWith("/api/v1/integrations/") && path.endsWith("/webhooks/service-status")) ||
+                // Frontend routes - allow browser to request these so Angular Router can handle them
+                path.equals("/") ||
+                path.equals("/index.html") ||
+                path.equals("/login") ||
+                path.equals("/register") ||
+                path.equals("/verify-email") ||
+                path.equals("/accept-invitation") ||
+                path.startsWith("/dashboard") ||
+                path.startsWith("/ambassador") ||
+                path.startsWith("/join") ||
                 path.startsWith("/r/") ||
                 path.startsWith("/swagger-ui") ||
                 path.startsWith("/v3/api-docs") ||
-                path.startsWith("/actuator");
+                path.startsWith("/actuator") ||
+                // Static assets
+                path.endsWith(".js") ||
+                path.endsWith(".css") ||
+                path.endsWith(".html") ||
+                path.endsWith(".map") ||
+                path.endsWith(".png") ||
+                path.endsWith(".jpg") ||
+                path.endsWith(".jpeg") ||
+                path.endsWith(".gif") ||
+                path.endsWith(".svg") ||
+                path.endsWith(".woff") ||
+                path.endsWith(".woff2") ||
+                path.endsWith(".ttf") ||
+                path.endsWith(".eot") ||
+                path.endsWith(".ico") ||
+                path.endsWith(".json");
     }
 
     private boolean isJwtProtectedEndpoint(String path) {
         return path.startsWith("/api/dashboard/") ||
-                path.startsWith("/api/auth/me");
+                path.startsWith("/api/auth/me") ||
+                path.startsWith("/api/admin/");
     }
 
     private void sendUnauthorizedResponse(HttpServletResponse response, String message) throws IOException {

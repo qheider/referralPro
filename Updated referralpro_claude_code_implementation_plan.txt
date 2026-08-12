@@ -1,0 +1,721 @@
+REFERRALPRO: CLAUDE CODE IMPLEMENTATION PLAN
+============================================
+
+PURPOSE
+-------
+Use this document as the source of truth for extending the existing ReferralPro Spring Boot and Angular application. Claude Code must first inspect the current repository, identify what already exists, and then implement the missing capabilities incrementally. Do not replace working code without a clear reason.
+
+ReferralPro is a multi-tenant referral marketing platform with three participant types:
+
+1. Company administrator: registers a company, manages campaigns and integrations, and views company results. Has ReferralPro login access.
+2. Ambassador: joins a company campaign, shares a personal referral link, and views only personal results. Has ReferralPro login access.
+3. Referred end user: registers through an ambassador link and is sent to the company platform. Does not have ReferralPro login access.
+
+SECURITY WARNING
+----------------
+Do not place passwords, API keys, webhook secrets, database credentials, SSH credentials, tokens, or private IP configuration in source code, documentation, tests, logs, or Git. Use environment variables or a secret manager. Redact sensitive values in logs and API responses.
+
+
+1. TARGET END-TO-END BUSINESS FLOW
+==================================
+
+Company onboarding:
+
+1. A company visits ReferralPro and opens company registration.
+2. Registration creates the company tenant and its first COMPANY_ADMIN account.
+3. The administrator verifies the email and activates the account.
+4. The administrator logs in and opens the company dashboard.
+
+Campaign and ambassador acquisition:
+
+5. The administrator creates an ambassador campaign.
+6. The administrator configures enrollment dates, referral dates, reward rules, qualifying conditions, incentives, budget, and terms.
+7. The administrator publishes the campaign.
+8. ReferralPro generates a company-campaign enrollment link.
+9. The company publishes the link on its website, email, social channels, QR codes, or printed material.
+10. A prospective ambassador opens the campaign link.
+11. ReferralPro verifies that the company and campaign are active and that ambassador enrollment is open.
+12. If enrollment is unavailable, show a controlled unavailable or expired page.
+13. If enrollment is available, allow ambassador registration.
+14. Create the ambassador account, company membership, and campaign membership.
+15. Verify the ambassador email and generate an ambassador-specific referral link.
+16. The ambassador shares the link with friends or followers.
+
+End-user registration and company API integration:
+
+17. A referred user opens the ambassador link.
+18. ReferralPro resolves and validates the company, campaign, ambassador, campaign membership, and link.
+19. If invalid, reject the referral or continue without attribution according to configured policy.
+20. If valid, record the referral click and retain attribution in a secure cookie or server-side session.
+21. Collect the required end-user registration data.
+22. Create an internal referred-user record without a ReferralPro login.
+23. Create a pending referral/conversion attribution.
+24. Persist an outbox message in the same database transaction.
+25. A background worker reads the outbox message and calls the company Create User API.
+26. If the call fails temporarily, record the attempt and schedule a retry.
+27. If it fails permanently, mark it for manual review or dead-letter handling.
+28. If successful, store the company user reference and any company service reference.
+
+Webhook, revenue, and compensation:
+
+29. The company sends later service or transaction status updates to a ReferralPro webhook.
+30. ReferralPro authenticates the company, verifies the signature and timestamp, and deduplicates the event ID.
+31. Store the webhook event and process it asynchronously.
+32. Match the event to the company user reference and referral conversion.
+33. Update the service/conversion status.
+34. When a configured qualifying status occurs, record revenue and calculate ambassador compensation.
+35. If a cancellation or refund occurs, reverse or adjust revenue and compensation idempotently.
+36. Update administrator and ambassador dashboards from internal confirmed records.
+
+
+2. ROLES AND AUTHORIZATION
+==========================
+
+Required roles:
+
+- COMPANY_ADMIN
+- AMBASSADOR
+
+Authorization rules:
+
+- Every business record must contain or reliably derive company_id.
+- Backend services and repositories must enforce tenant boundaries. UI filtering alone is not sufficient.
+- A company administrator can access only the company to which the administrator belongs.
+- An ambassador can access only personal profile, memberships, links, clicks, conversions, revenue, and rewards.
+- Ambassadors cannot create or modify campaigns, view other ambassadors, access company integration settings, change reward rules, or view company-wide financial results.
+- Referred end users have no ReferralPro account or login authority.
+- Never accept company_id or ambassador_id from a client without validating it against the authenticated principal.
+- Add authorization tests for cross-tenant and cross-ambassador access attempts.
+
+
+3. COMPANY REGISTRATION
+=======================
+
+Collect:
+
+- Company name and optional business name
+- Industry and website
+- Country, default currency, and time zone
+- Administrator first name, last name, and email
+- Password
+- Terms and privacy acceptance
+
+Within one transaction:
+
+1. Validate company and administrator uniqueness requirements.
+2. Create Company.
+3. Create UserAccount with COMPANY_ADMIN authority.
+4. Create CompanyMembership.
+5. Create email-verification token or event.
+6. Create AuditEvent.
+7. Initialize CompanyIntegration with NOT_CONFIGURED status.
+
+Use secure password hashing. Verification tokens must expire, be single-use, and not be stored in plaintext if an equivalent hashed-token design is possible.
+
+
+4. CAMPAIGN MANAGEMENT
+======================
+
+Only COMPANY_ADMIN can create, edit, publish, pause, close, or archive campaigns.
+
+Campaign fields:
+
+- Name and description
+- Public landing-page content and branding
+- Ambassador enrollment start/end timestamps
+- Customer referral start/end timestamps
+- Status
+- Target audience and eligibility rules
+- Customer incentive
+- Reward type and amount/percentage
+- Reward eligibility conditions
+- Qualifying service statuses
+- Revenue calculation rule
+- Attribution window
+- Budget and reward limit
+- Maximum ambassadors or referrals, if applicable
+- Terms and conditions
+- Currency
+- Created/updated timestamps and audit information
+
+Statuses:
+
+- DRAFT
+- SCHEDULED
+- ACTIVE
+- PAUSED
+- EXPIRED
+- CLOSED
+- ARCHIVED
+
+Rules:
+
+- DRAFT may become SCHEDULED or ACTIVE.
+- SCHEDULED becomes ACTIVE when its start time arrives.
+- ACTIVE may become PAUSED, EXPIRED, or CLOSED.
+- PAUSED may return to ACTIVE if dates and policy allow it.
+- EXPIRED and CLOSED may become ARCHIVED.
+- Ambassador enrollment may end before customer referrals end.
+- Do not physically delete historical campaigns that have memberships, referrals, revenue, or rewards.
+- Snapshot financial rules used for each calculated reward so later campaign edits cannot rewrite history.
+
+Published campaign link format:
+
+https://app.referralpro.com/join/{campaignCode}
+
+Use a unique, random, non-sequential public code. Never expose a database primary key.
+
+
+5. AMBASSADOR REGISTRATION AND DASHBOARD
+========================================
+
+Before registration, validate:
+
+- Company is active.
+- Campaign exists and is published.
+- Ambassador enrollment is currently open.
+- Enrollment limit has not been reached.
+- Applicant satisfies configured eligibility rules.
+
+Registration may collect:
+
+- First and last name
+- Email and password
+- Country or region
+- Social channels and profile links
+- Audience information
+- Campaign terms acceptance
+- Privacy and marketing consent
+
+Create:
+
+- UserAccount with AMBASSADOR authority
+- AmbassadorProfile
+- CompanyMembership
+- CampaignMembership
+- Terms-acceptance record
+- Email-verification request
+- ReferralLink
+- AuditEvent
+
+Referral link format:
+
+https://app.referralpro.com/r/{referralCode}
+
+The code resolves internally to company, campaign, ambassador, campaign membership, and link status.
+
+Ambassador dashboard metrics:
+
+- Current, previous, and expired campaigns
+- Personal referral links and optional QR codes
+- Unique clicks
+- End-user registrations
+- Customers successfully submitted to the company
+- Pending, completed, cancelled, and refunded services
+- Personal conversion rate
+- Attributed revenue
+- Rewards pending, eligible, approved, paid, rejected, or reversed
+
+
+6. REFERRED END-USER REGISTRATION
+================================
+
+When an ambassador referral link is opened:
+
+1. Resolve the referral code.
+2. Validate company, campaign, ambassador, membership, link status, dates, and attribution rules.
+3. Record ReferralClick with UTC timestamp and minimal useful request metadata.
+4. Store attribution securely for the configured attribution window.
+5. Display the company/campaign registration form.
+
+After submission:
+
+1. Validate and normalize fields.
+2. Check for duplicate or previously attributed registrations.
+3. Create ReferredUser without a UserAccount.
+4. Create ReferralConversion in REGISTERED or SUBMISSION_PENDING state.
+5. Associate company, campaign, ambassador, campaign membership, link, and click where available.
+6. Generate an immutable externalRequestId/idempotency key.
+7. Add the company Create User request to the transactional outbox.
+
+Minimize stored personal data. Encrypt or otherwise protect sensitive fields as required, and never log full registration payloads.
+
+
+7. COMPANY INTEGRATION CONFIGURATION
+====================================
+
+CompanyIntegration fields should support:
+
+- Company Create User API URL
+- Authentication type
+- Encrypted credentials or OAuth configuration
+- Request timeout
+- Retry policy
+- Required fields and field mapping
+- Webhook signing configuration
+- Supported company service statuses
+- Mapping from company statuses to ReferralPro statuses
+- Revenue and reward mapping rules
+- Integration status and last test result
+
+Statuses:
+
+- NOT_CONFIGURED
+- PENDING_VERIFICATION
+- ACTIVE
+- DISABLED
+- ERROR
+
+Provide a Test Connection action. Do not expose decrypted credentials through ordinary API responses or the dashboard.
+
+
+8. OUTGOING CREATE USER API
+===========================
+
+Example conceptual payload:
+
+{
+  "externalRequestId": "req_8f09c128",
+  "firstName": "Example",
+  "lastName": "Customer",
+  "email": "customer@example.com",
+  "phone": "4165550100",
+  "campaignCode": "SUMMER2026",
+  "referralCode": "B8YKRSBW"
+}
+
+Rules:
+
+- externalRequestId is the idempotency key.
+- The same request must never create duplicate company customers.
+- Do not execute the remote call inside the database transaction that creates the end user.
+- Write an outbox event in the same transaction as the internal end-user/conversion record.
+- A scheduled worker claims and processes pending outbox rows safely.
+- Prevent two worker instances from processing the same row concurrently.
+- Store every delivery attempt with timestamps, outcome, HTTP status, failure category, sanitized message, and next retry time.
+- Use bounded exponential backoff with jitter.
+- Retry timeouts, HTTP 429, and normally HTTP 502/503/504.
+- Do not automatically retry permanent validation failures unless explicitly configured.
+- After the maximum attempts, mark the submission PERMANENTLY_FAILED and route it to manual review/dead-letter handling.
+
+Submission statuses:
+
+- PENDING
+- PROCESSING
+- SUCCEEDED
+- RETRY_SCHEDULED
+- PERMANENTLY_FAILED
+- CANCELLED
+
+On success store:
+
+- Company customer reference
+- Company service/transaction reference, if returned
+- Submission timestamp
+- Sanitized response status
+- Initial mapped service status
+
+
+9. INCOMING COMPANY WEBHOOK
+===========================
+
+Example endpoint:
+
+POST /api/v1/integrations/{companyCode}/webhooks/service-status
+
+Example conceptual payload:
+
+{
+  "eventId": "evt_987654",
+  "eventType": "SERVICE_COMPLETED",
+  "occurredAt": "2026-08-06T14:30:00Z",
+  "companyUserReference": "CUS-48392",
+  "serviceReference": "RENTAL-19482",
+  "status": "COMPLETED",
+  "revenueAmount": 800.00,
+  "currency": "CAD"
+}
+
+Webhook processing requirements:
+
+1. Resolve the company from a non-guessable public identifier.
+2. Authenticate the sender and verify an HMAC signature or configured equivalent.
+3. Validate timestamp freshness to reduce replay risk.
+4. Enforce a unique constraint for company_id + eventId.
+5. Store the event securely before business processing.
+6. Return a quick success response after durable acceptance.
+7. Process business logic asynchronously.
+8. Match the company user/service reference to the referral conversion.
+9. Apply configurable status mapping.
+10. Update conversion, revenue, and reward records idempotently.
+11. Record processing failures for retry/manual review.
+
+Never create duplicate revenue or rewards when a webhook is delivered more than once.
+
+
+10. CONVERSION, REVENUE, AND REWARD LIFECYCLES
+==============================================
+
+Suggested conversion flow:
+
+- REGISTERED
+- SUBMISSION_PENDING
+- COMPANY_USER_CREATED
+- SERVICE_PENDING
+- SERVICE_COMPLETED
+- SERVICE_CANCELLED
+- REFUNDED
+- SUBMISSION_FAILED, with retry back to SUBMISSION_PENDING where eligible
+
+Example company-status mapping:
+
+- USER_CREATED -> COMPANY_USER_CREATED
+- SERVICE_PENDING -> SERVICE_PENDING
+- SERVICE_CONFIRMED -> qualifying status configured by campaign
+- SERVICE_COMPLETED -> SERVICE_COMPLETED
+- SERVICE_CANCELLED -> SERVICE_CANCELLED
+- REFUNDED -> REFUNDED
+
+Reward types:
+
+- Fixed amount per qualifying service
+- Percentage of attributed revenue
+- Tiered reward
+- Milestone bonus
+- Points or company credit
+
+Reward statuses:
+
+- PENDING
+- ELIGIBLE
+- APPROVED
+- PAID
+- REJECTED
+- REVERSED
+
+Reward rules:
+
+- Registration alone may be a lead and not a payable conversion.
+- Calculate compensation only after the configured qualifying event.
+- Store amount and ISO currency together.
+- Use decimal monetary types, never floating point.
+- Make reward calculation idempotent and enforce database uniqueness where practical.
+- Snapshot the applied campaign reward configuration.
+- A cancellation/refund may reverse an unpaid reward or create an adjustment for a paid reward.
+- Preserve all historical financial records and audit changes.
+
+
+11. CORE DOMAIN RECORDS
+=======================
+
+- Company
+- UserAccount
+- CompanyMembership
+- AmbassadorProfile
+- Campaign
+- CampaignMembership
+- ReferralLink
+- ReferralClick
+- ReferredUser
+- ReferralConversion
+- CompanyIntegration
+- ApiSubmission
+- IntegrationAttempt
+- OutboxEvent
+- WebhookEvent
+- RevenueEvent
+- Reward
+- Payout
+- AuditEvent
+- EmailVerificationToken or equivalent
+
+Claude Code must compare this target model with current entities and migrations. Reuse appropriate existing records and names. Introduce new entities only where the existing model cannot safely represent the required behavior.
+
+
+12. ADMINISTRATOR DASHBOARD
+===========================
+
+Show company-scoped metrics and filters for date range and campaign:
+
+- Draft, scheduled, active, paused, expired, and closed campaigns
+- Total and net-new ambassadors per campaign
+- Referral clicks and unique eligible clicks
+- End-user registrations
+- Successful and failed company API submissions
+- Pending retries and permanently failed submissions
+- Pending, completed, cancelled, and refunded services
+- Approved non-refunded revenue by campaign
+- Ambassador rewards by status
+- Top campaigns and top ambassadors
+- Recent referral and integration activity
+
+Definitions:
+
+- New ambassadors: distinct campaign memberships created during the selected period.
+- Referred users: distinct end users attributed to an ambassador.
+- Conversion rate: approved conversions divided by unique eligible referral clicks.
+- Generated revenue: approved, non-refunded revenue attributed to the campaign.
+- Ambassador earnings: approved rewards, reported separately from pending and paid amounts.
+- Current campaign: published and within its active customer-referral period.
+- Expired campaign: customer-referral end time has passed.
+
+Build dashboard totals from confirmed internal database records, not live company API calls.
+
+
+13. TECHNICAL ARCHITECTURE REQUIREMENTS
+=======================================
+
+Backend:
+
+- Spring Boot using the versions already established in the repository unless an upgrade is separately planned.
+- Spring Security for authentication and method/request authorization.
+- JPA/Hibernate repositories with tenant-safe queries.
+- Flyway for all schema changes. Never modify an already-applied migration; create a new versioned migration.
+- Service-layer transaction boundaries.
+- Transactional outbox for reliable external delivery.
+- Scheduled worker(s) for campaign expiration, API delivery/retry, and asynchronous webhook processing.
+- Bean Validation for request validation.
+- OpenAPI/Swagger documentation where already used.
+- Structured logging with correlation identifiers and redacted data.
+- Metrics for API delivery, retries, dead letters, webhook failures, and processing latency.
+
+Frontend:
+
+- Angular routes and guards appropriate to COMPANY_ADMIN and AMBASSADOR.
+- Company registration and verification screens.
+- Admin campaign list, campaign form, campaign details, integration configuration, ambassador list, reporting, and integration-monitoring views.
+- Ambassador registration, campaign list, referral-link, and personal performance views.
+- Public campaign enrollment and referred-user registration pages.
+- Controlled invalid, paused, closed, and expired link pages.
+- Reuse existing design system, components, services, interceptors, and error handling.
+
+Engineering rules:
+
+- Store timestamps in UTC and display in the company time zone.
+- Use optimistic locking/version columns for important mutable records where concurrent updates are possible.
+- Use database constraints for uniqueness and referential integrity.
+- Use pagination for campaign, ambassador, click, conversion, event, and reward lists.
+- Sanitize remote error responses before persistence and display.
+- Set strict connection/read timeouts for external requests.
+- Do not leak whether another tenant's resource exists; return an appropriate not-found/forbidden response based on the existing security convention.
+
+
+14. CLAUDE CODE WORKING METHOD
+==============================
+
+Before changing code:
+
+1. Read repository guidance files such as CLAUDE.md, README, AGENTS.md, and module-specific instructions.
+2. Inspect the complete project structure.
+3. Identify backend and frontend modules, build tools, runtime versions, security model, database migrations, tests, and Docker configuration.
+4. Run the current build and tests and record the baseline result.
+5. Produce a gap analysis mapping existing code to this plan.
+6. Propose a phased implementation plan with exact files/classes likely to change.
+7. Do not begin a broad rewrite. Preserve working behavior and naming conventions.
+
+For every implementation phase:
+
+1. State the phase goal and acceptance criteria.
+2. Implement the smallest complete vertical slice.
+3. Add the Flyway migration before relying on schema changes.
+4. Add or update entities, repositories, services, DTOs, controllers, security rules, and frontend behavior as required.
+5. Add unit, repository, integration, authorization, and frontend tests appropriate to the slice.
+6. Run targeted tests, then the full available test suite.
+7. Run formatting/linting/build checks used by the repository.
+8. Summarize changed files, API/schema changes, test results, risks, and remaining work.
+9. Stop and ask for a decision if existing behavior conflicts materially with this document.
+
+Do not claim completion if tests were skipped or failing. Clearly separate pre-existing failures from new failures.
+
+
+15. IMPLEMENTATION PHASES
+=========================
+
+PHASE 0: Repository assessment
+
+- Inspect current Spring Boot, Angular, security, Docker, and Flyway setup.
+- Run baseline builds and tests.
+- Create target-to-current gap analysis.
+- Identify risky migrations and compatibility concerns.
+
+PHASE 1: Tenant and authorization foundation
+
+- Confirm Company, UserAccount, roles, and memberships.
+- Implement or strengthen tenant-aware authorization.
+- Add cross-tenant security tests.
+- Add audit support for security-sensitive actions.
+
+Acceptance criteria:
+
+- Admin can access only the assigned company.
+- Ambassador can access only personal data.
+- Cross-tenant resource identifiers cannot bypass authorization.
+
+PHASE 2: Company and administrator registration
+
+- Company/first-admin registration transaction.
+- Email verification and activation.
+- Initial integration record.
+- Admin login and dashboard shell.
+
+PHASE 3: Campaign management
+
+- Campaign model and Flyway migration.
+- Admin CRUD with lifecycle transitions.
+- Enrollment and referral date validation.
+- Company-campaign public link.
+- Campaign expiration worker.
+
+PHASE 4: Ambassador onboarding
+
+- Public campaign validation and registration.
+- Ambassador and campaign memberships.
+- Email verification.
+- Referral-code generation.
+- Ambassador dashboard and authorization.
+
+PHASE 5: Referral attribution and end-user registration
+
+- Link resolution and click recording.
+- Secure attribution state.
+- Public referred-user form.
+- Duplicate controls.
+- ReferredUser and ReferralConversion creation.
+
+PHASE 6: Company API integration
+
+- Integration configuration and secret handling.
+- Test Connection function.
+- Transactional outbox.
+- Create User API client.
+- Worker claim/locking strategy.
+- Retry, attempt history, and dead-letter/manual-review handling.
+- Admin integration monitoring.
+
+PHASE 7: Webhook processing
+
+- Company-specific webhook endpoint.
+- Signature and timestamp verification.
+- Durable event storage and unique-event deduplication.
+- Asynchronous processing and retry.
+- Configurable status mapping.
+- Conversion status updates.
+
+PHASE 8: Revenue, rewards, and dashboards
+
+- RevenueEvent and Reward records.
+- Idempotent calculation with rule snapshots.
+- Cancellation/refund reversal handling.
+- Admin campaign/ambassador reporting.
+- Ambassador personal earnings dashboard.
+- Payout tracking if in current scope.
+
+PHASE 9: Hardening and release readiness
+
+- Full security and authorization review.
+- Concurrency and idempotency tests.
+- API timeout/retry tests.
+- Webhook replay/duplicate tests.
+- Database indexes and query performance review.
+- Observability, audit, and redaction review.
+- Docker/environment documentation without secrets.
+- End-to-end acceptance test.
+
+
+16. MINIMUM TEST MATRIX
+=======================
+
+Company and security:
+
+- Company registration creates exactly one tenant and first admin.
+- Duplicate registration follows defined policy.
+- Unverified/disabled accounts cannot access protected functions.
+- Admin A cannot read or mutate Company B records.
+- Ambassador A cannot read Ambassador B records, even in the same company.
+
+Campaign:
+
+- Only admin can create/update/publish/pause/close/archive.
+- Date and status transitions are validated.
+- Enrollment closes independently from referral activity.
+- Expired/paused/invalid public links show controlled responses.
+
+Referral:
+
+- Public codes are unique and non-sequential.
+- Valid click creates one click record and attribution.
+- Invalid link does not create incorrect attribution.
+- Duplicate registration cannot produce duplicate conversion/reward.
+
+Outgoing integration:
+
+- Outbox record commits atomically with end-user/conversion.
+- Worker success stores company reference once.
+- Temporary failure schedules bounded retry.
+- Permanent failure is not retried indefinitely.
+- Concurrent workers do not deliver the same pending item simultaneously.
+- Replayed delivery uses the same idempotency key.
+
+Webhook:
+
+- Valid signature is accepted.
+- Invalid signature, stale timestamp, and wrong company are rejected.
+- Duplicate event is safely ignored/acknowledged without duplicate business effects.
+- Unknown references go to a controlled error/manual-review state.
+- Out-of-order status events follow an explicit transition policy.
+
+Revenue and reward:
+
+- Qualifying event creates expected revenue and reward once.
+- Non-qualifying event creates no payable reward.
+- Later campaign edits do not change historical reward calculations.
+- Cancellation/refund creates correct reversal/adjustment.
+- Currency mismatch follows explicit validation policy.
+
+
+17. DEFINITION OF DONE
+======================
+
+A phase is complete only when:
+
+- Acceptance criteria are implemented.
+- Schema changes are delivered through new Flyway migrations.
+- Backend tenant authorization is enforced and tested.
+- Public and authenticated APIs are validated and documented.
+- Unit/integration/security tests pass.
+- Frontend build and relevant tests pass.
+- External calls and webhooks are idempotent where required.
+- Logs contain no secrets or unnecessary personal data.
+- Error handling and user-facing states are implemented.
+- Docker/local configuration uses environment-variable placeholders.
+- Documentation describes setup, migrations, API contracts, and operational behavior without credentials.
+
+
+18. FUTURE ITERATIONS, NOT REQUIRED FOR INITIAL DELIVERY
+========================================================
+
+- Automatic social-media publishing
+- CRM and e-commerce connectors
+- QR-code campaign material generation
+- Fraud and self-referral detection
+- Automated payout-provider integration
+- Coupons and promotional codes
+- Custom company domains and branding
+- Campaign A/B testing
+- Additional administrator roles and fine-grained permissions
+- Advanced analytics and data export
+
+
+FIRST PROMPT TO GIVE CLAUDE CODE
+================================
+
+Read this entire plan and inspect the existing ReferralPro repository. Do not modify code yet. First provide:
+
+1. A concise summary of the current architecture and versions.
+2. A gap analysis that maps existing capabilities to the target requirements in this file.
+3. Security, data-model, migration, and integration risks.
+4. A phased implementation plan using the phases in this document, adjusted to the actual repository.
+5. The exact files/classes expected to change in Phase 1.
+6. Baseline build and test results.
+
+Wait for approval before starting Phase 1. Never put credentials in code, prompts, documentation, logs, or Git.

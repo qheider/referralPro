@@ -599,6 +599,7 @@ ReferralPro uses environment variables for all sensitive configuration. Configur
 | `DATABASE_USER` | Database username | `referral_user` | `prod_user` |
 | `DATABASE_PASSWORD` | Database password | `referral_pass` | `secure_password_here` |
 | `JWT_SECRET` | JWT signing secret (min 256 bits) | `local-dev-secret-key...` | Generate with: `openssl rand -base64 32` |
+| `INTEGRATION_ENCRYPTION_KEY` | AES-256-GCM key encrypting outgoing company-integration credentials/webhook signing secrets | `dev-only-insecure-integration-key...` | Generate with: `openssl rand -base64 32`. **Rotating this after credentials are stored makes existing encrypted `company_integrations` rows undecryptable** - no key-rotation/re-encryption tooling exists yet. |
 | `JWT_EXPIRATION_MINUTES` | JWT token lifetime | `120` | `60` |
 | `APP_BASE_URL` | Application base URL | `http://localhost:8080` | `https://api.yourcompany.com` |
 

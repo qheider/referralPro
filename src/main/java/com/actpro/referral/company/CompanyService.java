@@ -1,17 +1,23 @@
 package com.actpro.referral.company;
 
+import com.actpro.referral.auth.AccountInvitationService;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.InvitationPurpose;
+import com.actpro.referral.auth.UserRole;
+import com.actpro.referral.auth.UserStatus;
+import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.common.EmailService;
 import com.actpro.referral.common.exception.BadRequestException;
+import com.actpro.referral.company.dto.IssuedApiKeyResponse;
 import com.actpro.referral.company.dto.RegisterCompanyRequest;
 import com.actpro.referral.company.dto.RegisterCompanyResponse;
+import com.actpro.referral.integration.webhook.WebhookPublicIdGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.UUID;
 
 @Slf4j
 @Service
@@ -21,6 +27,11 @@ public class CompanyService {
     private final CompanyRepository companyRepository;
     private final DashboardUserRepository dashboardUserRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CompanyApiKeyService companyApiKeyService;
+    private final CompanyIntegrationRepository companyIntegrationRepository;
+    private final AccountInvitationService accountInvitationService;
+    private final WebhookPublicIdGenerator webhookPublicIdGenerator;
+    private final EmailService emailService;
 
     @Transactional
     public RegisterCompanyResponse registerCompany(RegisterCompanyRequest request) {
@@ -53,8 +64,7 @@ public class CompanyService {
         company.setCompanySize(request.companySize());
         company.setPreferredCurrency(request.preferredCurrency());
         company.setStatus(CompanyStatus.ACTIVE);
-        company.setApiKey(generateApiKey());
-        
+
         // Optional company fields
         company.setTaxId(request.taxId());
         company.setCompanyLogoUrl(request.companyLogoUrl());
@@ -91,26 +101,49 @@ public class CompanyService {
         company = companyRepository.save(company);
         log.info("Company registered successfully with ID: {}", company.getId());
 
-        // Create admin dashboard user
+        // Initial integration record - full outbound config (API URL, auth, credentials, retry
+        // policy) was added by Phase 6; webhookPublicId is generated now (Phase 7) so the
+        // company's inbound webhook URL exists from day one, even before an admin ever visits the
+        // integration settings page - actually configuring webhookSigningSecret/statusMappingJson
+        // still happens later via CompanyIntegrationService.
+        CompanyIntegration integration = new CompanyIntegration();
+        integration.setCompany(company);
+        integration.setWebhookPublicId(webhookPublicIdGenerator.generateUniqueId());
+        integration.setStatus(CompanyIntegrationStatus.NOT_CONFIGURED);
+        companyIntegrationRepository.save(integration);
+
+        IssuedApiKeyResponse apiKey = companyApiKeyService.issueInitialKey(company);
+
+        // Create admin dashboard user - starts PENDING (login blocked, see AuthService/
+        // JwtAuthenticationFilter) until the email-verification invitation below is redeemed.
         DashboardUser adminUser = new DashboardUser();
         adminUser.setCompany(company);
         adminUser.setUsername(request.adminWorkEmail());
         adminUser.setPassword(passwordEncoder.encode(request.password()));
-        adminUser.setRole(request.adminRole());
-        
-        dashboardUserRepository.save(adminUser);
+        adminUser.setRole(UserRole.fromValue(request.adminRole()));
+        adminUser.setFirstName(request.adminFullName());
+        adminUser.setStatus(UserStatus.PENDING);
+
+        adminUser = dashboardUserRepository.save(adminUser);
         log.info("Admin user created for company: {}", company.getId());
+
+        IssuedInvitationResponse verification = accountInvitationService.issueInvitation(
+                adminUser, InvitationPurpose.COMPANY_EMAIL_VERIFICATION);
+
+        // Send verification email to admin
+        try {
+            emailService.sendVerificationEmail(request.adminWorkEmail(), verification.token());
+        } catch (Exception e) {
+            log.warn("Failed to send verification email, but registration completed. Admin will see token in response.", e);
+        }
 
         return new RegisterCompanyResponse(
                 company.getId(),
                 company.getName(),
-                company.getApiKey(),
-                request.adminWorkEmail()
+                apiKey.apiKey(),
+                request.adminWorkEmail(),
+                verification.token(),
+                verification.expiresAt()
         );
-    }
-
-    private String generateApiKey() {
-        String uuid = UUID.randomUUID().toString().replace("-", "");
-        return "cmp_live_" + uuid;
     }
 }

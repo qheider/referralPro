@@ -5,7 +5,7 @@ import com.actpro.referral.campaign.CampaignRepository;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.dashboard.dto.*;
-import com.actpro.referral.security.CompanyContext;
+import com.actpro.referral.security.CurrentUserService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import lombok.RequiredArgsConstructor;
@@ -28,15 +28,12 @@ public class DashboardService {
 
     private final CampaignRepository campaignRepository;
     private final EntityManager entityManager;
+    private final CurrentUserService currentUserService;
 
     @Transactional(readOnly = true)
     public CampaignsOverviewResponse getCampaignsOverview() {
-        Company company = CompanyContext.getCurrentCompany();
-        
-        if (company == null) {
-            throw new IllegalStateException("Company context not set - authentication may have failed");
-        }
-        
+        Company company = currentUserService.getCurrentUser().getCompany();
+
         log.debug("Loading campaigns overview for company: {} (ID: {})", company.getName(), company.getId());
 
         // Get all campaigns for the company
@@ -46,13 +43,13 @@ public class DashboardService {
         List<CampaignOverviewItem> campaignItems = campaigns.stream()
                 .map(campaign -> {
                     // Count referrals and clicks for this campaign
+                    // Click count is derived from referral_clicks.campaign_id directly (not via
+                    // referral_id) so ambassador referral-link clicks - which have no Referral
+                    // row until a lead is submitted - are still counted.
                     String referralSql = """
-                        SELECT 
-                            COUNT(DISTINCT r.id) as referralCount,
-                            COUNT(DISTINCT rc.id) as clickCount
-                        FROM referrals r
-                        LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
-                        WHERE r.campaign_id = :campaignId
+                        SELECT
+                            (SELECT COUNT(DISTINCT id) FROM referrals WHERE campaign_id = :campaignId) as referralCount,
+                            (SELECT COUNT(DISTINCT id) FROM referral_clicks WHERE campaign_id = :campaignId) as clickCount
                         """;
                     Query referralQuery = entityManager.createNativeQuery(referralSql);
                     referralQuery.setParameter("campaignId", campaign.getId());
@@ -97,21 +94,23 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public CampaignStatsResponse getCampaignStats(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
+        // totalClicks is a scalar subquery on referral_clicks.campaign_id (not a join through
+        // referrals) so it (a) counts ambassador referral-link clicks, which have no Referral
+        // row yet, and (b) doesn't fan out the SUM(reward_value) aggregate below.
         String sql = """
-            SELECT 
+            SELECT
                 COUNT(DISTINCT r.id) as totalReferrals,
-                COUNT(DISTINCT rc.id) as totalClicks,
+                (SELECT COUNT(DISTINCT id) FROM referral_clicks WHERE campaign_id = c.id) as totalClicks,
                 COUNT(DISTINCT conv.id) as totalConversions,
                 COUNT(DISTINCT rw.id) as totalRewards,
                 COALESCE(SUM(CASE WHEN rw.id IS NOT NULL THEN rw.reward_value ELSE 0 END), 0) as totalRewardValue,
                 COUNT(DISTINCT CASE WHEN rw.status = 'REDEEMED' THEN rw.id END) as rewardsRedeemed
             FROM campaigns c
             LEFT JOIN referrals r ON r.campaign_id = c.id
-            LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
             LEFT JOIN conversions conv ON conv.campaign_id = c.id
             LEFT JOIN rewards rw ON rw.campaign_id = c.id
             WHERE c.id = :campaignId AND c.company_id = :companyId
@@ -119,7 +118,7 @@ public class DashboardService {
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
 
         Object[] result = (Object[]) query.getSingleResult();
 
@@ -160,25 +159,24 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public ConversionFunnelResponse getConversionFunnel(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         String sql = """
-            SELECT 
+            SELECT
                 COUNT(DISTINCT r.id) as referralsCount,
-                COUNT(DISTINCT rc.id) as clicksCount,
+                (SELECT COUNT(DISTINCT id) FROM referral_clicks WHERE campaign_id = c.id) as clicksCount,
                 COUNT(DISTINCT conv.id) as conversionsCount
             FROM campaigns c
             LEFT JOIN referrals r ON r.campaign_id = c.id
-            LEFT JOIN referral_clicks rc ON rc.referral_id = r.id
             LEFT JOIN conversions conv ON conv.campaign_id = c.id
             WHERE c.id = :campaignId AND c.company_id = :companyId
             """;
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
 
         Object[] result = (Object[]) query.getSingleResult();
 
@@ -212,8 +210,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public TopReferrersResponse getTopReferrers(Long campaignId, Integer limit) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         if (limit == null || limit <= 0) {
@@ -265,7 +263,7 @@ public class DashboardService {
 
         Query query = entityManager.createNativeQuery(sql);
         query.setParameter("campaignId", campaignId);
-        query.setParameter("companyId", company.getId());
+        query.setParameter("companyId", companyId);
         query.setParameter("limit", limit);
 
         @SuppressWarnings("unchecked")
@@ -292,8 +290,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public TimeSeriesResponse getTimeSeries(Long campaignId, LocalDate startDate, LocalDate endDate, String granularity) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         // Default to last 30 days if not specified
@@ -321,15 +319,14 @@ public class DashboardService {
             
             UNION ALL
             
-            SELECT 
+            SELECT
                 DATE(rc.clicked_at) as date,
                 0 as referrals,
                 COUNT(DISTINCT rc.id) as clicks,
                 0 as conversions,
                 0 as rewards
             FROM referral_clicks rc
-            JOIN referrals r ON r.id = rc.referral_id
-            WHERE r.campaign_id = :campaignId
+            WHERE rc.campaign_id = :campaignId
                 AND DATE(rc.clicked_at) BETWEEN :startDate AND :endDate
             GROUP BY DATE(rc.clicked_at)
             
@@ -421,8 +418,8 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public RewardSummaryResponse getRewardSummary(Long campaignId) {
-        Company company = CompanyContext.getCurrentCompany();
-        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, company.getId())
+        Long companyId = currentUserService.getCurrentCompanyId();
+        Campaign campaign = campaignRepository.findByIdAndCompanyId(campaignId, companyId)
                 .orElseThrow(() -> new NotFoundException("Campaign not found"));
 
         // Get overall stats
@@ -438,7 +435,7 @@ public class DashboardService {
 
         Query statsQuery = entityManager.createNativeQuery(statsSql);
         statsQuery.setParameter("campaignId", campaignId);
-        statsQuery.setParameter("companyId", company.getId());
+        statsQuery.setParameter("companyId", companyId);
 
         Object[] statsResult = (Object[]) statsQuery.getSingleResult();
 
@@ -464,7 +461,7 @@ public class DashboardService {
 
         Query breakdownQuery = entityManager.createNativeQuery(breakdownSql);
         breakdownQuery.setParameter("campaignId", campaignId);
-        breakdownQuery.setParameter("companyId", company.getId());
+        breakdownQuery.setParameter("companyId", companyId);
 
         @SuppressWarnings("unchecked")
         List<Object[]> breakdownResults = breakdownQuery.getResultList();

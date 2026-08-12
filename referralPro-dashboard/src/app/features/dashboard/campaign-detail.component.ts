@@ -1,10 +1,13 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, NgZone, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ChartConfiguration } from 'chart.js';
 import { BaseChartDirective } from 'ng2-charts';
 import { forkJoin, finalize } from 'rxjs';
+import { AuthService } from '../../core/services/auth.service';
+import { CampaignService } from '../../core/services/campaign.service';
 import { DashboardService } from '../../core/services/dashboard.service';
+import { CampaignResponse } from '../../shared/models/campaign.model';
 import {
   CampaignStatsResponse,
   ConversionFunnelResponse,
@@ -13,6 +16,8 @@ import {
   TopReferrersResponse
 } from '../../shared/models/dashboard.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
+
+type CampaignAction = 'publish' | 'pause' | 'resume' | 'close' | 'archive';
 
 @Component({
   selector: 'app-campaign-detail',
@@ -23,6 +28,11 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 })
 export class CampaignDetailComponent implements OnInit {
   campaignId: number | null = null;
+  campaign: CampaignResponse | null = null;
+  campaignError = '';
+  isTransitioning = false;
+  joinLinkCopied = false;
+
   stats: CampaignStatsResponse | null = null;
   funnel: ConversionFunnelResponse | null = null;
   topReferrers: TopReferrersResponse | null = null;
@@ -97,8 +107,8 @@ export class CampaignDetailComponent implements OnInit {
   constructor(
     private route: ActivatedRoute,
     private dashboardService: DashboardService,
-    private ngZone: NgZone,
-    private cdr: ChangeDetectorRef
+    private campaignService: CampaignService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -110,7 +120,104 @@ export class CampaignDetailComponent implements OnInit {
     }
 
     this.campaignId = campaignId;
+    this.loadCampaign(campaignId);
     this.loadCampaignDetail(campaignId);
+  }
+
+  get canPublish(): boolean {
+    return this.campaign?.status === 'DRAFT';
+  }
+
+  get canPause(): boolean {
+    return this.campaign?.status === 'ACTIVE';
+  }
+
+  get canResume(): boolean {
+    return this.campaign?.status === 'PAUSED';
+  }
+
+  get canClose(): boolean {
+    return this.campaign?.status === 'SCHEDULED' || this.campaign?.status === 'ACTIVE' || this.campaign?.status === 'PAUSED';
+  }
+
+  get canArchive(): boolean {
+    return this.campaign?.status === 'EXPIRED' || this.campaign?.status === 'CLOSED';
+  }
+
+  copyJoinLink(): void {
+    if (!this.campaign) {
+      return;
+    }
+    navigator.clipboard.writeText(this.campaign.joinLink).then(() => {
+      this.joinLinkCopied = true;
+      setTimeout(() => (this.joinLinkCopied = false), 2000);
+    });
+  }
+
+  publish(): void {
+    this.runTransition('publish');
+  }
+
+  pause(): void {
+    this.runTransition('pause');
+  }
+
+  resume(): void {
+    this.runTransition('resume');
+  }
+
+  close(): void {
+    this.runTransition('close');
+  }
+
+  archive(): void {
+    this.runTransition('archive');
+  }
+
+  private runTransition(action: CampaignAction): void {
+    const companyId = this.authService.getCurrentUserValue()?.companyId;
+    if (!companyId || !this.campaignId) {
+      this.campaignError = 'Unable to determine the current company. Please sign in again.';
+      return;
+    }
+
+    this.isTransitioning = true;
+    this.campaignError = '';
+
+    const request$ =
+      action === 'publish' ? this.campaignService.publishCampaign(companyId, this.campaignId) :
+      action === 'pause' ? this.campaignService.pauseCampaign(companyId, this.campaignId) :
+      action === 'resume' ? this.campaignService.resumeCampaign(companyId, this.campaignId) :
+      action === 'close' ? this.campaignService.closeCampaign(companyId, this.campaignId) :
+      this.campaignService.archiveCampaign(companyId, this.campaignId);
+
+    request$
+      .pipe(finalize(() => (this.isTransitioning = false)))
+      .subscribe({
+        next: campaign => {
+          this.campaign = campaign;
+        },
+        error: (error: unknown) => {
+          this.campaignError = extractApiErrorMessage(error, `Unable to ${action} campaign.`);
+        }
+      });
+  }
+
+  private loadCampaign(campaignId: number): void {
+    const companyId = this.authService.getCurrentUserValue()?.companyId;
+    if (!companyId) {
+      this.campaignError = 'Unable to determine the current company. Please sign in again.';
+      return;
+    }
+
+    this.campaignService.getCampaign(companyId, campaignId).subscribe({
+      next: campaign => {
+        this.campaign = campaign;
+      },
+      error: (error: unknown) => {
+        this.campaignError = extractApiErrorMessage(error, 'Unable to load campaign settings.');
+      }
+    });
   }
 
   get pageTitle(): string {
@@ -147,40 +254,34 @@ export class CampaignDetailComponent implements OnInit {
     this.isLoading = true;
     this.errorMessage = '';
 
-    this.ngZone.run(() => {
-      forkJoin({
-        stats: this.dashboardService.getCampaignStats(campaignId),
-        funnel: this.dashboardService.getConversionFunnel(campaignId),
-        topReferrers: this.dashboardService.getTopReferrers(campaignId),
-        timeSeries: this.dashboardService.getTimeSeries(campaignId),
-        rewardSummary: this.dashboardService.getRewardSummary(campaignId)
-      })
-        .pipe(finalize(() => {
-          this.isLoading = false;
-          this.cdr.markForCheck();
-        }))
-        .subscribe({
-          next: result => {
-            this.stats = result.stats;
-            this.funnel = result.funnel;
-            this.topReferrers = result.topReferrers;
-            this.timeSeries = result.timeSeries;
-            this.rewardSummary = result.rewardSummary;
-            this.updateCharts();
-            this.cdr.detectChanges();
-          },
-          error: error => {
-            console.error('Campaign detail failed:', error);
-            this.errorMessage = extractApiErrorMessage(error, 'Unable to load campaign detail.');
-            this.stats = null;
-            this.funnel = null;
-            this.topReferrers = null;
-            this.timeSeries = null;
-            this.rewardSummary = null;
-            this.updateCharts();
-          }
-        });
-    });
+    forkJoin({
+      stats: this.dashboardService.getCampaignStats(campaignId),
+      funnel: this.dashboardService.getConversionFunnel(campaignId),
+      topReferrers: this.dashboardService.getTopReferrers(campaignId),
+      timeSeries: this.dashboardService.getTimeSeries(campaignId),
+      rewardSummary: this.dashboardService.getRewardSummary(campaignId)
+    })
+      .pipe(finalize(() => (this.isLoading = false)))
+      .subscribe({
+        next: result => {
+          this.stats = result.stats;
+          this.funnel = result.funnel;
+          this.topReferrers = result.topReferrers;
+          this.timeSeries = result.timeSeries;
+          this.rewardSummary = result.rewardSummary;
+          this.updateCharts();
+        },
+        error: error => {
+          console.error('Campaign detail failed:', error);
+          this.errorMessage = extractApiErrorMessage(error, 'Unable to load campaign detail.');
+          this.stats = null;
+          this.funnel = null;
+          this.topReferrers = null;
+          this.timeSeries = null;
+          this.rewardSummary = null;
+          this.updateCharts();
+        }
+      });
   }
 
   private updateCharts(): void {
