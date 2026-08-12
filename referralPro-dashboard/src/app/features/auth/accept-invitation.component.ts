@@ -164,7 +164,7 @@ export class AcceptInvitationComponent implements OnInit {
           this.router.navigate(['/login']);
         }, 2000);
       },
-      error: (error) => {
+      error: (error: unknown) => {
         this.state = 'error';
         this.submitError = extractApiErrorMessage(error, 'Unable to accept this invitation. It may have expired or already been used.');
       }

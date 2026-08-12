@@ -212,6 +212,21 @@ export class AuthService {
       );
   }
 
+  /**
+   * Accept an ambassador (or other invitation-based) account invitation by setting a password.
+   * Mirrors verifyEmail's shape - see AccountInvitationController#acceptInvitation.
+   */
+  acceptInvitation(token: string, password: string): Observable<AcceptInvitationResponse> {
+    return this.http.post<ApiResponse<AcceptInvitationResponse>>(`${environment.apiUrl}/auth/accept-invitation`, { token, password })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Unable to accept this invitation')),
+        catchError(error => {
+          console.error('Accept invitation failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
   getDefaultRoute(): string {
     return this.getDefaultRouteForRole(this.getCurrentUserValue()?.role);
   }
