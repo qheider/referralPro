@@ -115,6 +115,7 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 // of Spring Security's AuthorizationFilter, so a path missing here 401s before
                 // permitAll ever gets a say, regardless of what SecurityConfig allows.
                 path.equals("/api/ambassador-applications/apply") ||
+                path.equals("/api/ambassador-registrations") ||
                 (path.startsWith("/api/referral-links/") && path.endsWith("/leads")) ||
                 path.startsWith("/api/campaigns/join/") ||
                 (path.startsWith("/api/v1/integrations/") && path.endsWith("/webhooks/service-status")) ||

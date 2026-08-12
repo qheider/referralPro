@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { ambassadorGuard } from './core/guards/ambassador.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { companyAdminGuard } from './core/guards/company-admin.guard';
+import { AcceptInvitationComponent } from './features/auth/accept-invitation.component';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
 import { VerifyEmailComponent } from './features/auth/verify-email.component';
@@ -20,6 +21,12 @@ export const routes: Routes = [
   {
     path: 'verify-email',
     component: VerifyEmailComponent
+  },
+  {
+    // Ambassador (and other invitation-based) onboarding: /accept-invitation?token=...
+    // See EmailService.sendAmbassadorInvitationEmail.
+    path: 'accept-invitation',
+    component: AcceptInvitationComponent
   },
   {
     // Public campaign join link (Phase 3): /join/{campaignCode}

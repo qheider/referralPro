@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap, catchError, throwError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../../shared/models/api-response.model';
-import { LoginRequest, LoginResponse, CurrentUserResponse, User } from '../../shared/models/auth.model';
+import { LoginRequest, LoginResponse, CurrentUserResponse, User, AcceptInvitationResponse } from '../../shared/models/auth.model';
 
 @Injectable({
   providedIn: 'root'
@@ -207,6 +207,22 @@ export class AuthService {
         map(response => this.unwrapResponse(response, 'Email verification failed')),
         catchError(error => {
           console.error('Email verification failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Accept an account invitation (e.g. ambassador onboarding): sets the invited user's real
+   * password and activates the account. Doesn't log the user in - the response has no JWT -
+   * so callers should route to /login afterwards.
+   */
+  acceptInvitation(token: string, password: string): Observable<AcceptInvitationResponse> {
+    return this.http.post<ApiResponse<AcceptInvitationResponse>>(`${environment.apiUrl}/auth/accept-invitation`, { token, password })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Invitation acceptance failed')),
+        catchError(error => {
+          console.error('Invitation acceptance failed:', error);
           return throwError(() => error);
         })
       );

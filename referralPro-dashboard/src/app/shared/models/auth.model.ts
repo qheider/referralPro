@@ -26,3 +26,9 @@ export interface User {
   companyName?: string;
   role: string;
 }
+
+export interface AcceptInvitationResponse {
+  userId: number;
+  username: string;
+  role: string;
+}
