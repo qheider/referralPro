@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap, catchError, throwError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../../shared/models/api-response.model';
-import { LoginRequest, LoginResponse, CurrentUserResponse, User } from '../../shared/models/auth.model';
+import { LoginRequest, LoginResponse, CurrentUserResponse, User, AcceptInvitationResponse } from '../../shared/models/auth.model';
 
 @Injectable({
   providedIn: 'root'
