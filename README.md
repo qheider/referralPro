@@ -137,7 +137,7 @@ This guide will help you set up and run both the backend API and the frontend da
 3. **Start the Backend API**
    ```bash
    # On Windows
-   .\mvnw.cmd clean install
+   .\mvnw.cmd clean install -DskipTests
    .\mvnw.cmd spring-boot:run
    
    # On Linux/Mac
