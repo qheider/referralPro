@@ -1,6 +1,7 @@
 package com.actpro.referral.security;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -27,6 +28,9 @@ public class SecurityConfig {
 
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+    @Value("${app.cors.allowed-origins}")
+    private List<String> corsAllowedOrigins;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -90,23 +94,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Use allowedOriginPatterns to support wildcards for local development
-        configuration.setAllowedOriginPatterns(List.of(
-            "http://localhost",           // Docker frontend (port 80)
-            "http://localhost:*",         // Any localhost port
-            "http://127.0.0.1",           // Localhost IP (port 80)
-            "http://127.0.0.1:*",         // Localhost IP (any port)
-            "http://192.168.*.*",         // Local network (192.168.x.x)
-            "http://192.168.*.*:*",       // Local network with port
-            "http://10.*.*.*",            // Local network (10.x.x.x)
-            "http://10.*.*.*:*",          // Local network with port
-            "http://172.16.*.*",          // Local network (172.16-31.x.x)
-            "http://172.16.*.*:*",         // Local network with port
-            "http://100.93.215.82",         // Local tailscale network 
-            "http://100.93.215.82:*",         // Local tailscale network with port
-            "http://100.122.180.92",
-            "http://100.122.180.92:*"      // tailscale network with port for basement desktop
-        ));
+        // Use allowedOriginPatterns to support wildcards for local development; the default value
+        // of app.cors.allowed-origins (see application.yml) preserves today's localhost/LAN/
+        // Tailscale patterns exactly - real deployments override via CORS_ALLOWED_ORIGINS.
+        // setAllowedOriginPatterns accepts exact URLs fine (patterns are a superset), so UAT/prod
+        // origins don't need setAllowedOrigins.
+        configuration.setAllowedOriginPatterns(corsAllowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
