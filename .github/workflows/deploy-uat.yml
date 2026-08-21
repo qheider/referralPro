@@ -3,7 +3,7 @@ name: Deploy UAT to Elastic Beanstalk
 on:
   push:
     branches:
-      - UAT
+      - uat
   workflow_dispatch:
 
 jobs:
