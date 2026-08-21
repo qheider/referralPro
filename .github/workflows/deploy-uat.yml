@@ -49,7 +49,7 @@ jobs:
       - name: Create deployment version
         id: version
         run: |
-          VERSION="uat-${GITHUB_SHA}-${GITHUB_RUN_NUMBER}"
+          VERSION="uat-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}-${GITHUB_SHA}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Upload deployment package to S3
