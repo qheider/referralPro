@@ -4,15 +4,16 @@ import com.actpro.referral.ambassador.AmbassadorAdminService.AmbassadorProvision
 import com.actpro.referral.ambassador.dto.AmbassadorApplicationApprovalResponse;
 import com.actpro.referral.ambassador.dto.AmbassadorApplicationDetailResponse;
 import com.actpro.referral.ambassador.dto.AmbassadorApplicationSubmissionResponse;
-import com.actpro.referral.ambassador.dto.AmbassadorRegistrationResponse;
 import com.actpro.referral.ambassador.dto.AmbassadorSummaryResponse;
 import com.actpro.referral.ambassador.dto.RejectApplicationRequest;
 import com.actpro.referral.ambassador.dto.SubmitAmbassadorApplicationRequest;
 import com.actpro.referral.auth.DashboardUser;
 import com.actpro.referral.auth.DashboardUserRepository;
+import com.actpro.referral.auth.UserRole;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
 import com.actpro.referral.campaign.Campaign;
 import com.actpro.referral.campaign.CampaignService;
+import com.actpro.referral.common.EmailService;
 import com.actpro.referral.common.exception.BadRequestException;
 import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
@@ -29,6 +30,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,6 +38,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -65,6 +68,9 @@ class AmbassadorApplicationServiceTest {
     @Mock
     private OutboxEventPublisher outboxEventPublisher;
 
+    @Mock
+    private EmailService emailService;
+
     @InjectMocks
     private AmbassadorApplicationService ambassadorApplicationService;
 
@@ -78,6 +84,7 @@ class AmbassadorApplicationServiceTest {
         company.setStatus(CompanyStatus.ACTIVE);
 
         lenient().when(currentUserService.getCurrentCompanyId()).thenReturn(10L);
+        lenient().when(dashboardUserRepository.findByCompanyIdAndRole(10L, UserRole.COMPANY_ADMIN)).thenReturn(List.of());
     }
 
     private SubmitAmbassadorApplicationRequest validRequest() {
@@ -128,6 +135,55 @@ class AmbassadorApplicationServiceTest {
         assertEquals(41L, response.applicationId());
         assertEquals(ApplicationStatus.PENDING, response.status());
 
+        verify(outboxEventPublisher).publish(eq(company), eq("AMBASSADOR_APPLICATION"), eq(41L),
+                eq("ambassador_application.submitted"), any());
+        verify(emailService).sendAmbassadorApplicationReceivedEmail("sarah@example.com", "Sarah Ahmed", "Acme Rentals");
+    }
+
+    @Test
+    void shouldNotifyEveryCompanyAdminWhenApplicationSubmitted() {
+        DashboardUser adminOne = new DashboardUser();
+        adminOne.setUsername("owner@acme.com");
+        DashboardUser adminTwo = new DashboardUser();
+        adminTwo.setUsername("ops@acme.com");
+
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(false);
+        when(ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(10L, "sarah@example.com", ApplicationStatus.PENDING))
+                .thenReturn(false);
+        when(ambassadorApplicationRepository.save(any(AmbassadorApplication.class))).thenAnswer(invocation -> {
+            AmbassadorApplication application = invocation.getArgument(0);
+            application.setId(41L);
+            return application;
+        });
+        when(dashboardUserRepository.findByCompanyIdAndRole(10L, UserRole.COMPANY_ADMIN))
+                .thenReturn(List.of(adminOne, adminTwo));
+
+        ambassadorApplicationService.submitApplication(10L, null, validRequest());
+
+        verify(emailService).sendAmbassadorApplicationAdminNotificationEmail(
+                "owner@acme.com", "Sarah Ahmed", "sarah@example.com", "Acme Rentals");
+        verify(emailService).sendAmbassadorApplicationAdminNotificationEmail(
+                "ops@acme.com", "Sarah Ahmed", "sarah@example.com", "Acme Rentals");
+    }
+
+    @Test
+    void shouldSubmitApplicationEvenWhenNotificationEmailFails() {
+        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
+        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(false);
+        when(ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(10L, "sarah@example.com", ApplicationStatus.PENDING))
+                .thenReturn(false);
+        when(ambassadorApplicationRepository.save(any(AmbassadorApplication.class))).thenAnswer(invocation -> {
+            AmbassadorApplication application = invocation.getArgument(0);
+            application.setId(41L);
+            return application;
+        });
+        doThrow(new RuntimeException("mail server down"))
+                .when(emailService).sendAmbassadorApplicationReceivedEmail(any(), any(), any());
+
+        AmbassadorApplicationSubmissionResponse response = ambassadorApplicationService.submitApplication(10L, null, validRequest());
+
+        assertEquals(ApplicationStatus.PENDING, response.status());
         verify(outboxEventPublisher).publish(eq(company), eq("AMBASSADOR_APPLICATION"), eq(41L),
                 eq("ambassador_application.submitted"), any());
     }
@@ -202,79 +258,6 @@ class AmbassadorApplicationServiceTest {
                 .thenReturn(true);
 
         assertThrows(BadRequestException.class, () -> ambassadorApplicationService.submitApplication(10L, null, validRequest()));
-        verify(ambassadorApplicationRepository, never()).save(any());
-    }
-
-    @Test
-    void shouldRegisterAmbassadorInstantlyAsApprovedAndProvisionAccount() {
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
-        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(false);
-        when(ambassadorApplicationRepository.existsByCompanyIdAndEmailAndStatus(10L, "sarah@example.com", ApplicationStatus.PENDING))
-                .thenReturn(false);
-        when(ambassadorApplicationRepository.save(any(AmbassadorApplication.class))).thenAnswer(invocation -> {
-            AmbassadorApplication application = invocation.getArgument(0);
-            application.setId(41L);
-            return application;
-        });
-
-        DashboardUser user = new DashboardUser();
-        user.setId(21L);
-        user.setCompany(company);
-
-        AmbassadorProfile profile = new AmbassadorProfile();
-        profile.setId(31L);
-        profile.setUser(user);
-        profile.setCompany(company);
-        profile.setStatus(AmbassadorStatus.INVITED);
-
-        IssuedInvitationResponse invitation = new IssuedInvitationResponse(101L, "raw-invitation-token", LocalDateTime.now().plusDays(7));
-        when(ambassadorAdminService.provisionAmbassadorAccount(
-                eq(company), eq("sarah@example.com"), eq("Sarah"), eq("Ahmed"), any(), any(), any(), any(), any()))
-                .thenReturn(new AmbassadorProvisioningResult(profile, invitation));
-
-        AmbassadorRegistrationResponse response = ambassadorApplicationService.registerAmbassador(10L, null, validRequest());
-
-        ArgumentCaptor<AmbassadorApplication> captor = ArgumentCaptor.forClass(AmbassadorApplication.class);
-        verify(ambassadorApplicationRepository).save(captor.capture());
-        AmbassadorApplication saved = captor.getValue();
-
-        // Auto-approved, not PENDING - no human review gate on this path.
-        assertEquals(ApplicationStatus.APPROVED, saved.getStatus());
-        assertEquals(31L, saved.getResultingAmbassadorProfileId());
-        assertEquals(31L, response.ambassadorProfileId());
-        assertEquals(AmbassadorStatus.INVITED, response.status());
-
-        verify(outboxEventPublisher).publish(eq(company), eq("AMBASSADOR_APPLICATION"), eq(41L),
-                eq("ambassador_application.approved"), any());
-    }
-
-    @Test
-    void shouldRejectRegistrationWhenCampaignEnrollmentNotOpen() {
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
-        when(campaignService.getCampaignForEnrollment("JOIN1234AB", company))
-                .thenThrow(new BadRequestException("Ambassador enrollment has closed."));
-
-        assertThrows(BadRequestException.class,
-                () -> ambassadorApplicationService.registerAmbassador(10L, "JOIN1234AB", validRequest()));
-        verify(ambassadorApplicationRepository, never()).save(any());
-        verify(ambassadorAdminService, never()).provisionAmbassadorAccount(any(), any(), any(), any(), any(), any(), any(), any(), any());
-    }
-
-    @Test
-    void shouldRejectRegistrationWhenEmailAlreadyHasAnAccount() {
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
-        when(dashboardUserRepository.existsByUsername("sarah@example.com")).thenReturn(true);
-
-        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.registerAmbassador(10L, null, validRequest()));
-        verify(ambassadorApplicationRepository, never()).save(any());
-    }
-
-    @Test
-    void shouldRejectRegistrationWhenCompanyNotActive() {
-        company.setStatus(CompanyStatus.SUSPENDED);
-        when(companyRepository.findById(10L)).thenReturn(Optional.of(company));
-
-        assertThrows(BadRequestException.class, () -> ambassadorApplicationService.registerAmbassador(10L, null, validRequest()));
         verify(ambassadorApplicationRepository, never()).save(any());
     }
 

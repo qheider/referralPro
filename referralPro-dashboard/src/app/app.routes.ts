@@ -2,6 +2,7 @@ import { Routes } from '@angular/router';
 import { ambassadorGuard } from './core/guards/ambassador.guard';
 import { authGuard } from './core/guards/auth.guard';
 import { companyAdminGuard } from './core/guards/company-admin.guard';
+import { AcceptInvitationComponent } from './features/auth/accept-invitation.component';
 import { LoginComponent } from './features/auth/login.component';
 import { RegisterComponent } from './features/auth/register.component';
 import { VerifyEmailComponent } from './features/auth/verify-email.component';
@@ -20,6 +21,13 @@ export const routes: Routes = [
   {
     path: 'verify-email',
     component: VerifyEmailComponent
+  },
+  {
+    // Public - lands here from the invitation email (EmailService.sendAmbassadorInvitationEmail)
+    // with ?token=... to set a password and activate the account. Was previously unroutable and
+    // fell through to the '**' wildcard below, bouncing invitees to /dashboard -> /login instead.
+    path: 'accept-invitation',
+    component: AcceptInvitationComponent
   },
   {
     // Public campaign join link (Phase 3): /join/{campaignCode}

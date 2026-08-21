@@ -50,9 +50,6 @@ public class SecurityConfig {
                         // /api/ambassador-applications/** is the /api/admin/... review surface,
                         // already covered by anyRequest().authenticated() + @PreAuthorize.
                         .requestMatchers("/api/ambassador-applications/apply").permitAll()
-                        // Public instant self-service ambassador registration via a campaign's
-                        // join link - see AmbassadorRegistrationController.
-                        .requestMatchers("/api/ambassador-registrations").permitAll()
                         // Public referred-customer lead submission - the visitor has no account
                         // yet. Single-segment wildcard for the path token, not a broad /**.
                         .requestMatchers("/api/referral-links/*/leads").permitAll()

@@ -33,11 +33,12 @@ type PageState = 'loading' | 'unavailable' | 'error' | 'open' | 'submitted';
       </div>
 
       <div *ngIf="state === 'submitted'" class="rounded-3xl bg-white p-8 text-center shadow-sm">
-        <h2 class="text-xl font-semibold text-slate-900">Check your email</h2>
+        <h2 class="text-xl font-semibold text-slate-900">Application submitted</h2>
         <p class="mt-3 text-sm text-slate-600">
-          You're almost set up as an ambassador for {{ campaign?.campaignName }}. We've sent a
-          verification link to your email - click it to activate your account and get your
-          personalized referral link.
+          We've emailed you a confirmation, and let {{ campaign?.companyName }} know someone
+          wants to join as an ambassador for {{ campaign?.campaignName }}. Once they approve your
+          application, you'll get another email with a link to set your password and access your
+          ambassador dashboard.
         </p>
       </div>
 
@@ -171,7 +172,7 @@ export class CampaignJoinComponent implements OnInit {
     this.submitError = '';
 
     this.ambassadorApplicationService
-      .register(this.campaign.companyId, this.campaignCode, {
+      .apply(this.campaign.companyId, this.campaignCode, {
         firstName: raw.firstName ?? '',
         lastName: raw.lastName ?? '',
         email: raw.email ?? '',
@@ -191,7 +192,7 @@ export class CampaignJoinComponent implements OnInit {
           this.cdr.markForCheck();
         },
         error: (error: unknown) => {
-          this.submitError = extractApiErrorMessage(error, 'Unable to submit registration.');
+          this.submitError = extractApiErrorMessage(error, 'Unable to submit application.');
           this.cdr.markForCheck();
         }
       });

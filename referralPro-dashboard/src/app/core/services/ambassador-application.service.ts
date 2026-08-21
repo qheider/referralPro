@@ -5,7 +5,6 @@ import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../../shared/models/api-response.model';
 import {
   AmbassadorApplicationSubmissionResponse,
-  AmbassadorRegistrationResponse,
   SubmitAmbassadorApplicationRequest
 } from '../../shared/models/ambassador-application.model';
 
@@ -16,7 +15,9 @@ export class AmbassadorApplicationService {
   constructor(private http: HttpClient) {}
 
   // Public - no auth required. campaignCode is optional (present when applying through a
-  // campaign's join link rather than a company's general application link).
+  // campaign's join link rather than a company's general application link). The application
+  // stays PENDING until a company admin approves it (AmbassadorApplicationAdminController) -
+  // only then does the applicant get the "set your password" invitation email.
   apply(
     companyId: number,
     campaignCode: string | null,
@@ -30,24 +31,6 @@ export class AmbassadorApplicationService {
     return this.http
       .post<ApiResponse<AmbassadorApplicationSubmissionResponse>>(url, request)
       .pipe(map(response => this.unwrapResponse(response, 'Unable to submit application.')));
-  }
-
-  // Public - no auth required. Instant self-service registration (see
-  // AmbassadorRegistrationController): unlike apply() above, the account is provisioned
-  // immediately rather than parked for admin review - only email verification gates it.
-  register(
-    companyId: number,
-    campaignCode: string | null,
-    request: SubmitAmbassadorApplicationRequest
-  ): Observable<AmbassadorRegistrationResponse> {
-    let url = `${environment.apiUrl}/ambassador-registrations?companyId=${companyId}`;
-    if (campaignCode) {
-      url += `&campaignCode=${encodeURIComponent(campaignCode)}`;
-    }
-
-    return this.http
-      .post<ApiResponse<AmbassadorRegistrationResponse>>(url, request)
-      .pipe(map(response => this.unwrapResponse(response, 'Unable to submit registration.')));
   }
 
   private unwrapResponse<T>(response: ApiResponse<T>, fallbackMessage: string): T {
