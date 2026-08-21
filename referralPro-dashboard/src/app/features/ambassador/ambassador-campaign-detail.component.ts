@@ -39,7 +39,7 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
         <section class="rounded-xl border border-slate-800 bg-slate-950 p-5">
           <h3 class="font-medium">Your referral link</h3>
-          <p class="mt-4 break-all text-sm text-cyan-200">{{ campaign.referralLink.publicUrl }}</p>
+          <p class="mt-4 break-all text-sm text-cyan-200">{{ campaign.referralLink.referralUrl }}</p>
           <p class="mt-4 text-sm text-slate-400">Landing page: {{ campaign.landingPageUrl }}</p>
         </section>
       </div>

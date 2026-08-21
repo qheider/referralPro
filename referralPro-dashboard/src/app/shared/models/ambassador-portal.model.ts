@@ -1,7 +1,7 @@
 export interface ReferralLinkSummary {
-  referralLinkId: number;
+  id: number;
   publicToken: string;
-  publicUrl: string;
+  referralUrl: string;
   destinationUrl: string;
   status: string;
   clickCount: number;
