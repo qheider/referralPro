@@ -50,7 +50,7 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
           <div class="mt-4 rounded-lg border border-slate-800 p-4">
             <p class="text-xs uppercase tracking-wide text-slate-500">Referral link</p>
-            <p class="mt-2 break-all text-sm text-cyan-200">{{ campaign.referralLink.publicUrl }}</p>
+            <p class="mt-2 break-all text-sm text-cyan-200">{{ campaign.referralLink.referralUrl }}</p>
           </div>
         </article>
       </div>

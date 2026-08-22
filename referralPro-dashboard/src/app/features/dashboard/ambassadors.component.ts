@@ -20,12 +20,20 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           <p class="mt-2 text-sm text-slate-500">Create, activate, and monitor ambassadors for your company.</p>
         </div>
 
-        <a
-          routerLink="/dashboard/ambassadors/new"
-          class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
-        >
-          New ambassador
-        </a>
+        <div class="flex gap-2">
+          <a
+            routerLink="/dashboard/ambassadors/applications"
+            class="inline-flex items-center justify-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          >
+            Pending applications
+          </a>
+          <a
+            routerLink="/dashboard/ambassadors/new"
+            class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          >
+            New ambassador
+          </a>
+        </div>
       </div>
 
       <div class="grid gap-4 rounded-3xl bg-white p-6 shadow-sm md:grid-cols-4">

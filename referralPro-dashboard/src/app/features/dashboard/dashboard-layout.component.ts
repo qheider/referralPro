@@ -116,6 +116,11 @@ export class DashboardLayoutComponent implements OnInit {
       return;
     }
 
+    if (url.includes('/dashboard/ambassadors/applications')) {
+      this.currentPageTitle = 'Ambassador applications';
+      return;
+    }
+
     if (url.includes('/dashboard/ambassadors/') && url.includes('/edit')) {
       this.currentPageTitle = 'Edit ambassador';
       return;

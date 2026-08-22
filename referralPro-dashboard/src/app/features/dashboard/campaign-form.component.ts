@@ -30,8 +30,9 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
       <form [formGroup]="form" (ngSubmit)="submit()" class="rounded-3xl bg-white p-6 shadow-sm">
         <div class="grid gap-4 md:grid-cols-2">
           <label class="space-y-2 md:col-span-2">
-            <span class="text-sm font-medium text-slate-700">Campaign name</span>
-            <input formControlName="name" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Campaign name <span class="text-red-500">*</span></span>
+            <input formControlName="name" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('name')" [class.border-slate-200]="!fieldError('name')" />
+            <p *ngIf="fieldError('name')" class="text-xs text-red-600">{{ fieldError('name') }}</p>
           </label>
 
           <label class="space-y-2 md:col-span-2">
@@ -40,8 +41,9 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           </label>
 
           <label class="space-y-2 md:col-span-2">
-            <span class="text-sm font-medium text-slate-700">Landing page URL</span>
-            <input formControlName="landingPageUrl" placeholder="https://example.com/promo" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Landing page URL <span class="text-red-500">*</span></span>
+            <input formControlName="landingPageUrl" placeholder="https://example.com/promo" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('landingPageUrl')" [class.border-slate-200]="!fieldError('landingPageUrl')" />
+            <p *ngIf="fieldError('landingPageUrl')" class="text-xs text-red-600">{{ fieldError('landingPageUrl') }}</p>
           </label>
 
           <label class="space-y-2 md:col-span-2">
@@ -65,28 +67,32 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Referral start date</span>
-            <input formControlName="startDate" type="datetime-local" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Referral start date <span class="text-red-500">*</span></span>
+            <input formControlName="startDate" type="datetime-local" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('startDate')" [class.border-slate-200]="!fieldError('startDate')" />
+            <p *ngIf="fieldError('startDate')" class="text-xs text-red-600">{{ fieldError('startDate') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Referral end date</span>
-            <input formControlName="endDate" type="datetime-local" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Referral end date <span class="text-red-500">*</span></span>
+            <input formControlName="endDate" type="datetime-local" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('endDate')" [class.border-slate-200]="!fieldError('endDate')" />
+            <p *ngIf="fieldError('endDate')" class="text-xs text-red-600">{{ fieldError('endDate') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Ambassador enrollment start</span>
-            <input formControlName="ambassadorEnrollmentStart" type="datetime-local" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Ambassador enrollment start <span class="text-red-500">*</span></span>
+            <input formControlName="ambassadorEnrollmentStart" type="datetime-local" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('ambassadorEnrollmentStart')" [class.border-slate-200]="!fieldError('ambassadorEnrollmentStart')" />
+            <p *ngIf="fieldError('ambassadorEnrollmentStart')" class="text-xs text-red-600">{{ fieldError('ambassadorEnrollmentStart') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Ambassador enrollment end</span>
+            <span class="text-sm font-medium text-slate-700">Ambassador enrollment end <span class="text-red-500">*</span></span>
             <p class="text-xs text-slate-400">Must be on or before the referral end date.</p>
-            <input formControlName="ambassadorEnrollmentEnd" type="datetime-local" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <input formControlName="ambassadorEnrollmentEnd" type="datetime-local" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('ambassadorEnrollmentEnd')" [class.border-slate-200]="!fieldError('ambassadorEnrollmentEnd')" />
+            <p *ngIf="fieldError('ambassadorEnrollmentEnd')" class="text-xs text-red-600">{{ fieldError('ambassadorEnrollmentEnd') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Reward type</span>
+            <span class="text-sm font-medium text-slate-700">Reward type <span class="text-red-500">*</span></span>
             <select formControlName="rewardType" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500">
               <option value="DISCOUNT_AMOUNT">Discount amount</option>
               <option value="DISCOUNT_PERCENTAGE">Discount percentage</option>
@@ -96,23 +102,26 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Conversion event name</span>
-            <input formControlName="conversionEventName" placeholder="purchase_completed" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Conversion event name <span class="text-red-500">*</span></span>
+            <input formControlName="conversionEventName" placeholder="purchase_completed" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('conversionEventName')" [class.border-slate-200]="!fieldError('conversionEventName')" />
+            <p *ngIf="fieldError('conversionEventName')" class="text-xs text-red-600">{{ fieldError('conversionEventName') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Referrer reward value</span>
-            <input formControlName="referrerRewardValue" type="number" min="0" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Referrer reward value <span class="text-red-500">*</span></span>
+            <input formControlName="referrerRewardValue" type="number" min="0" step="0.01" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('referrerRewardValue')" [class.border-slate-200]="!fieldError('referrerRewardValue')" />
+            <p *ngIf="fieldError('referrerRewardValue')" class="text-xs text-red-600">{{ fieldError('referrerRewardValue') }}</p>
           </label>
 
           <label class="space-y-2">
-            <span class="text-sm font-medium text-slate-700">Referee reward value</span>
-            <input formControlName="refereeRewardValue" type="number" min="0" step="0.01" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500" />
+            <span class="text-sm font-medium text-slate-700">Referee reward value <span class="text-red-500">*</span></span>
+            <input formControlName="refereeRewardValue" type="number" min="0" step="0.01" class="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:border-indigo-500" [class.border-red-300]="fieldError('refereeRewardValue')" [class.border-slate-200]="!fieldError('refereeRewardValue')" />
+            <p *ngIf="fieldError('refereeRewardValue')" class="text-xs text-red-600">{{ fieldError('refereeRewardValue') }}</p>
           </label>
         </div>
 
         <div class="mt-6 flex flex-wrap gap-3">
-          <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700" [disabled]="isSaving || form.invalid">
+          <button type="submit" class="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60" [disabled]="isSaving">
             {{ isSaving ? 'Creating...' : 'Create campaign' }}
           </button>
           <a routerLink="/dashboard/overview" class="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</a>
@@ -152,9 +161,43 @@ export class CampaignFormComponent {
     });
   }
 
+  private static readonly FIELD_LABELS: Record<string, string> = {
+    name: 'Campaign name',
+    landingPageUrl: 'Landing page URL',
+    startDate: 'Referral start date',
+    endDate: 'Referral end date',
+    ambassadorEnrollmentStart: 'Ambassador enrollment start',
+    ambassadorEnrollmentEnd: 'Ambassador enrollment end',
+    rewardType: 'Reward type',
+    conversionEventName: 'Conversion event name',
+    referrerRewardValue: 'Referrer reward value',
+    refereeRewardValue: 'Referee reward value'
+  };
+
+  /** Field-level validation message for a touched, invalid control - drives the inline errors under each input. */
+  fieldError(controlName: string): string | null {
+    const control = this.form.get(controlName);
+    if (!control || !control.touched || control.valid) {
+      return null;
+    }
+
+    const label = CampaignFormComponent.FIELD_LABELS[controlName] ?? 'This field';
+    if (control.hasError('required')) {
+      return `${label} is required.`;
+    }
+    if (control.hasError('maxlength')) {
+      return `${label} must be ${control.getError('maxlength').requiredLength} characters or fewer.`;
+    }
+    if (control.hasError('min')) {
+      return `${label} must be ${control.getError('min').min} or greater.`;
+    }
+    return `${label} is invalid.`;
+  }
+
   submit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.errorMessage = 'Please fix the highlighted fields below before creating the campaign.';
       return;
     }
 

@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { ArcElement, BarController, BarElement, CategoryScale, DoughnutController, Legend, LineController, LineElement, LinearScale, PointElement, Tooltip } from 'chart.js';
 import { provideCharts } from 'ng2-charts';
+import { AmbassadorApplicationsComponent } from './ambassador-applications.component';
 import { AmbassadorDetailComponent } from './ambassador-detail.component';
 import { AmbassadorFormComponent } from './ambassador-form.component';
 import { AmbassadorsComponent } from './ambassadors.component';
@@ -70,6 +71,12 @@ export const dashboardRoutes: Routes = [
       {
         path: 'ambassadors/new',
         component: AmbassadorFormComponent
+      },
+      {
+        // Must precede ambassadors/:ambassadorId - otherwise the router matches this path as
+        // an ambassador id first.
+        path: 'ambassadors/applications',
+        component: AmbassadorApplicationsComponent
       },
       {
         path: 'ambassadors/:ambassadorId',
