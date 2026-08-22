@@ -4,7 +4,28 @@ on:
   push:
     branches:
       - uat
+    paths:
+      - 'src/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - 'mvnw.cmd'
+      - '.mvn/**'
+      - 'Procfile'
+      - '.github/workflows/deploy-uat.yml'
+
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: referralpro-uat-backend
+  cancel-in-progress: false
+
+env:
+  EB_APPLICATION_NAME: referralpro-uat
+  EB_ENVIRONMENT_NAME: referralpro-uat-env
+  EB_S3_BUCKET: elasticbeanstalk-ca-central-1-418059030774
 
 jobs:
   deploy:
@@ -21,14 +42,21 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Build Spring Boot application
-        run: mvn -B clean package -DskipTests
+      - name: Build and test Spring Boot application
+        run: |
+          chmod +x mvnw
+          ./mvnw -B clean package
 
       - name: Prepare Elastic Beanstalk bundle
         run: |
           mkdir -p deploy-bundle
 
           JAR=$(find target -maxdepth 1 -type f -name "*.jar" ! -name "*-plain.jar" | head -n 1)
+
+          if [ -z "$JAR" ]; then
+            echo "No deployable JAR found in target/"
+            exit 1
+          fi
 
           echo "Using JAR: $JAR"
 
@@ -55,29 +83,29 @@ jobs:
       - name: Upload deployment package to S3
         run: |
           aws s3 cp referralpro-uat.zip \
-            s3://elasticbeanstalk-ca-central-1-418059030774/${{ steps.version.outputs.version }}.zip
+            "s3://${EB_S3_BUCKET}/${{ steps.version.outputs.version }}.zip"
 
       - name: Create Elastic Beanstalk application version
         run: |
           aws elasticbeanstalk create-application-version \
-            --application-name referralpro-uat \
+            --application-name "${EB_APPLICATION_NAME}" \
             --version-label "${{ steps.version.outputs.version }}" \
-            --source-bundle S3Bucket="elasticbeanstalk-ca-central-1-418059030774",S3Key="${{ steps.version.outputs.version }}.zip"
+            --source-bundle S3Bucket="${EB_S3_BUCKET}",S3Key="${{ steps.version.outputs.version }}.zip"
 
       - name: Deploy to UAT
         run: |
           aws elasticbeanstalk update-environment \
-            --environment-name referralpro-uat-env \
+            --environment-name "${EB_ENVIRONMENT_NAME}" \
             --version-label "${{ steps.version.outputs.version }}"
 
       - name: Wait for deployment
         run: |
           aws elasticbeanstalk wait environment-updated \
-            --environment-name referralpro-uat-env
+            --environment-name "${EB_ENVIRONMENT_NAME}"
 
-      - name: Deployment completed
+      - name: Verify deployment
         run: |
           aws elasticbeanstalk describe-environments \
-            --environment-names referralpro-uat-env \
+            --environment-names "${EB_ENVIRONMENT_NAME}" \
             --query "Environments[0].[Status,Health,HealthStatus,VersionLabel]" \
             --output table
