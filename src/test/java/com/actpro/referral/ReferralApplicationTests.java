@@ -1,13 +1,12 @@
-package ai.actpro.referralPro;
+package com.actpro.referral;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ReferralProApplicationTests {
+class ReferralApplicationTests {
 
-	@Test
-	void contextLoads() {
-	}
-
+    @Test
+    void contextLoads() {
+    }
 }
