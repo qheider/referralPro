@@ -7,11 +7,15 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.view.RedirectView;
 
 import java.time.Duration;
@@ -25,6 +29,7 @@ public class ReferralRedirectController {
     private static final Duration ATTRIBUTION_COOKIE_MAX_AGE = Duration.ofDays(30);
 
     private final ReferralClickService referralClickService;
+    private final ReferralQrCodeService referralQrCodeService;
 
     @Operation(
             summary = "Referral redirect",
@@ -45,6 +50,21 @@ public class ReferralRedirectController {
         String redirectUrl = referralClickService.resolveAndRecordClick(code, ipAddress, userAgent, refererUrl, sessionId);
 
         return new RedirectView(redirectUrl);
+    }
+
+    @Operation(
+            summary = "Referral link QR code",
+            description = "Public endpoint returning a PNG QR code encoding this same /r/{code} URL - " +
+                    "scanning it does exactly what clicking the link does (same click-tracking, same redirect)."
+    )
+    @GetMapping(value = "/r/{code}/qrcode", produces = MediaType.IMAGE_PNG_VALUE)
+    @ResponseBody
+    public ResponseEntity<byte[]> getReferralQrCode(@PathVariable String code) {
+        byte[] png = referralQrCodeService.generatePng(code);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                .body(png);
     }
 
     private String getClientIp(HttpServletRequest request) {

@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { AmbassadorPortalService } from '../../core/services/ambassador-portal.service';
 import { AmbassadorCampaignOverview } from '../../shared/models/ambassador-portal.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
+import { ReferralQrCodeComponent } from '../../shared/components/referral-qr-code.component';
 
 @Component({
   selector: 'app-ambassador-campaigns',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ReferralQrCodeComponent],
   template: `
     <div class="space-y-4">
       <div>
@@ -51,6 +52,7 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           <div class="mt-4 rounded-lg border border-slate-800 p-4">
             <p class="text-xs uppercase tracking-wide text-slate-500">Referral link</p>
             <p class="mt-2 break-all text-sm text-cyan-200">{{ campaign.referralLink.referralUrl }}</p>
+            <app-referral-qr-code class="mt-3 block" [referralUrl]="campaign.referralLink.referralUrl" />
           </div>
         </article>
       </div>
