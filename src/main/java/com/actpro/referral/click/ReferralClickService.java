@@ -71,18 +71,16 @@ public class ReferralClickService {
 
         referralLinkRepository.incrementClickCount(link.getId());
 
-        if (StringUtils.hasText(link.getDestinationUrl())) {
-            // Explicit company-configured override - same external-redirect contract as before:
-            // append ?ref={token} for that page to capture.
-            return appendRefParam(link.getDestinationUrl(), link.getPublicToken());
-        }
-
-        // Default: ReferralPro's own registration page (Phase 4), not the campaign's external
-        // landingPageUrl - the token is already in the path, so no ?ref= needed. The session id
-        // lets that page correlate its later lead submission (see ReferralLeadController) with
-        // this click without depending on a cross-origin cookie: rp_attr_session is SameSite=Lax
-        // and set on this backend's origin, so it won't be attached to the fetch/XHR POST the
-        // frontend-origin page later makes back to the API.
+        // Always land on ReferralPro's own registration page first, regardless of whether the
+        // link has a company-configured destinationUrl - ReferralPro needs to register the lead
+        // itself (see ReferralLeadService) so click-to-registration is tracked independently of
+        // the ambassador's own site. destinationUrl, when set, is only used as a post-registration
+        // forward from ReferralLeadService/campaign-refer.component once the lead is captured.
+        // The token is already in the path, so no ?ref= needed here. The session id lets that
+        // page correlate its later lead submission (see ReferralLeadController) with this click
+        // without depending on a cross-origin cookie: rp_attr_session is SameSite=Lax and set on
+        // this backend's origin, so it won't be attached to the fetch/XHR POST the frontend-origin
+        // page later makes back to the API.
         String destinationUrl = frontendUrl + "/refer/" + link.getPublicToken();
         return StringUtils.hasText(sessionId) ? destinationUrl + "?s=" + sessionId : destinationUrl;
     }

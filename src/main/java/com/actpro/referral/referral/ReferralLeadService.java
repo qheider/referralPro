@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -67,7 +68,7 @@ public class ReferralLeadService {
             Optional<Referral> existing = referralRepository.findByReferralLinkEntityIdAndAttributionSessionId(link.getId(), sessionId);
             if (existing.isPresent()) {
                 log.info("Returning existing referral for session {} on link {}", sessionId, link.getPublicToken());
-                return toResponse(existing.get());
+                return toResponse(existing.get(), link);
             }
         }
 
@@ -112,7 +113,7 @@ public class ReferralLeadService {
         log.info("Registered lead referral {} for link {}", code, link.getPublicToken());
         publishEvent(referral);
 
-        return toResponse(referral);
+        return toResponse(referral, link);
     }
 
     private void publishEvent(Referral referral) {
@@ -129,8 +130,15 @@ public class ReferralLeadService {
         outboxEventPublisher.publish(referral.getCompany(), "REFERRAL", referral.getId(), "referral.lead_registered", payload);
     }
 
-    private SubmitReferralLeadResponse toResponse(Referral referral) {
-        return new SubmitReferralLeadResponse(referral.getReferralCode(), referral.getStatus(), referral.getRegisteredAt());
+    private SubmitReferralLeadResponse toResponse(Referral referral, ReferralLink link) {
+        String redirectUrl = StringUtils.hasText(link.getDestinationUrl())
+                ? appendRefParam(link.getDestinationUrl(), referral.getReferralCode())
+                : null;
+        return new SubmitReferralLeadResponse(referral.getReferralCode(), referral.getStatus(), referral.getRegisteredAt(), redirectUrl);
+    }
+
+    private String appendRefParam(String url, String refCode) {
+        return url + (url.contains("?") ? "&" : "?") + "ref=" + refCode;
     }
 
     private String syntheticExternalUserId(String normalizedEmail) {

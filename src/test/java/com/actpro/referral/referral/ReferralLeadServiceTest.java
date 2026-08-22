@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -126,8 +127,52 @@ class ReferralLeadServiceTest {
 
         assertEquals("LEAD1234", response.referralCode());
         assertEquals(ReferralStatus.REGISTERED, response.status());
+        assertNull(response.redirectUrl());
 
         verify(outboxEventPublisher).publish(eq(company), eq("REFERRAL"), eq(99L), eq("referral.lead_registered"), any());
+    }
+
+    @Test
+    void shouldReturnRedirectUrlWhenLinkHasDestinationUrl() {
+        link.setDestinationUrl("https://custom.example.com/landing");
+
+        when(referralLinkRepository.findDetailedByPublicToken("AbcDef1234567890")).thenReturn(Optional.of(link));
+        when(referralRepository.existsByReferralLinkEntityIdAndCustomerUserEmailAndStatusNotIn(eq(77L), eq("jamie@example.com"), any()))
+                .thenReturn(false);
+        PlatformUser customer = new PlatformUser();
+        customer.setId(31L);
+        customer.setEmail("jamie@example.com");
+        when(platformUserService.findOrCreate(eq(company), anyString(), eq("jamie@example.com"), eq("Jamie Lee")))
+                .thenReturn(customer);
+        when(referralCodeGenerator.generateUniqueCode()).thenReturn("LEAD1234");
+        when(referralRepository.save(any(Referral.class))).thenAnswer(invocation -> {
+            Referral referral = invocation.getArgument(0);
+            referral.setId(99L);
+            return referral;
+        });
+        when(referralClickRepository.findByReferralLinkIdAndSessionIdAndReferralIsNull(77L, "session-1")).thenReturn(List.of());
+
+        SubmitReferralLeadResponse response = referralLeadService.submitLead("AbcDef1234567890", "session-1", validRequest());
+
+        assertEquals("https://custom.example.com/landing?ref=LEAD1234", response.redirectUrl());
+    }
+
+    @Test
+    void shouldIncludeRedirectUrlOnIdempotentExistingReferralWhenLinkHasDestinationUrl() {
+        link.setDestinationUrl("https://custom.example.com/landing");
+
+        Referral existing = new Referral();
+        existing.setId(50L);
+        existing.setReferralCode("EXISTING1");
+        existing.setStatus(ReferralStatus.REGISTERED);
+        existing.setRegisteredAt(LocalDateTime.now());
+
+        when(referralLinkRepository.findDetailedByPublicToken("AbcDef1234567890")).thenReturn(Optional.of(link));
+        when(referralRepository.findByReferralLinkEntityIdAndAttributionSessionId(77L, "session-1")).thenReturn(Optional.of(existing));
+
+        SubmitReferralLeadResponse response = referralLeadService.submitLead("AbcDef1234567890", "session-1", validRequest());
+
+        assertEquals("https://custom.example.com/landing?ref=EXISTING1", response.redirectUrl());
     }
 
     @Test
