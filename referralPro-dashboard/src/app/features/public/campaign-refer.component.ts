@@ -8,11 +8,17 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
 type PageState = 'form' | 'submitted' | 'error';
 
+const REDIRECT_DELAY_MS = 1500;
+
 /**
  * Public registration page a referred visitor lands on after clicking an ambassador's referral
- * link (see ReferralClickService's default /refer/{token} destination). Submits to the existing
- * lead-capture API, which creates the referred-user record and kicks off the outbox pipeline that
- * pushes it to the company's own system - see ReferralLeadService/ApiSubmissionDispatchService.
+ * link - always, even when the link has a company-configured destinationUrl, so ReferralPro
+ * registers the lead itself before anything else happens (see ReferralClickService). Submits to
+ * the existing lead-capture API, which creates the referred-user record and kicks off the outbox
+ * pipeline that pushes it to the company's own system - see
+ * ReferralLeadService/ApiSubmissionDispatchService. Once registered, if the link has a
+ * destinationUrl the response carries it back as redirectUrl and this page forwards the browser
+ * there; otherwise it just shows its own confirmation.
  */
 @Component({
   selector: 'app-campaign-refer',
@@ -29,6 +35,10 @@ type PageState = 'form' | 'submitted' | 'error';
         <h2 class="text-xl font-semibold text-slate-900">You're in!</h2>
         <p class="mt-3 text-sm text-slate-600">
           Thanks for signing up - we've registered your referral.
+        </p>
+        <p *ngIf="redirectUrl" class="mt-3 text-sm text-slate-600">
+          Redirecting you to continue&hellip;
+          <a [href]="redirectUrl" class="font-medium text-indigo-600 underline">Click here if you're not redirected automatically</a>.
         </p>
       </div>
 
@@ -72,6 +82,7 @@ export class CampaignReferComponent implements OnInit {
   errorMessage = '';
   submitError = '';
   isSubmitting = false;
+  redirectUrl: string | null = null;
 
   private token = '';
   private sessionId: string | null = null;
@@ -118,9 +129,19 @@ export class CampaignReferComponent implements OnInit {
         this.cdr.markForCheck();
       }))
       .subscribe({
-        next: () => {
+        next: (response) => {
           this.state = 'submitted';
+          this.redirectUrl = response.redirectUrl ?? null;
           this.cdr.markForCheck();
+
+          // ReferralPro has now registered the lead itself (net-new-user tracking is independent
+          // of the ambassador's own site) - only after that do we forward on to the ambassador's
+          // configured destinationUrl, if any. See ReferralClickService/ReferralLeadService.
+          if (this.redirectUrl) {
+            setTimeout(() => {
+              window.location.href = this.redirectUrl!;
+            }, REDIRECT_DELAY_MS);
+          }
         },
         error: (error: unknown) => {
           this.submitError = extractApiErrorMessage(error, 'Unable to submit registration.');

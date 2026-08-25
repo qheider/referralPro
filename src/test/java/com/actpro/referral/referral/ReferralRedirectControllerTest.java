@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.matches;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -32,6 +33,9 @@ class ReferralRedirectControllerTest {
 
     @MockBean
     private ReferralClickService referralClickService;
+
+    @MockBean
+    private ReferralQrCodeService referralQrCodeService;
 
     @MockBean
     private CurrentUserService currentUserService;
@@ -78,5 +82,16 @@ class ReferralRedirectControllerTest {
         mockMvc.perform(get("/r/AbcDef1234567890").cookie(new Cookie("rp_attr_session", oversizedValue)))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(cookie().exists("rp_attr_session"));
+    }
+
+    @Test
+    void shouldReturnQrCodePngForReferralCode() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G'};
+        when(referralQrCodeService.generatePng("AbcDef1234567890")).thenReturn(png);
+
+        mockMvc.perform(get("/r/AbcDef1234567890/qrcode"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(content().bytes(png));
     }
 }

@@ -120,7 +120,11 @@ class ReferralClickServiceTest {
     }
 
     @Test
-    void shouldRedirectToLinkDestinationUrlWhenSet() {
+    void shouldRedirectToInternalRegistrationPageEvenWhenLinkHasDestinationUrl() {
+        // destinationUrl is only used later, as a post-registration forward from
+        // ReferralLeadService once the lead is captured - see that class's toResponse. The
+        // click-time redirect always goes to ReferralPro's own page so registration is tracked
+        // independently of the ambassador's own site.
         ReferralLink link = new ReferralLink();
         link.setId(77L);
         link.setCompany(company);
@@ -135,7 +139,7 @@ class ReferralClickServiceTest {
                 "AbcDef1234567890", "203.0.113.5", "test-agent", null, "session-1"
         );
 
-        assertEquals("https://custom.example.com/landing?ref=AbcDef1234567890", redirectUrl);
+        assertEquals("https://app.example.com/refer/AbcDef1234567890?s=session-1", redirectUrl);
     }
 
     @Test
