@@ -111,6 +111,8 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                 path.startsWith("/api/auth/hash") ||
                 path.startsWith("/api/auth/accept-invitation") ||
                 path.startsWith("/api/auth/verify-email") ||
+                path.startsWith("/api/auth/forgot-password") ||
+                path.startsWith("/api/auth/reset-password") ||
                 // Kept in sync with SecurityConfig's permitAll matchers - this filter runs ahead
                 // of Spring Security's AuthorizationFilter, so a path missing here 401s before
                 // permitAll ever gets a say, regardless of what SecurityConfig allows.

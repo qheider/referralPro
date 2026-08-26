@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/hash").permitAll()
                         .requestMatchers("/api/auth/accept-invitation").permitAll()
                         .requestMatchers("/api/auth/verify-email").permitAll()
+                        .requestMatchers("/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                         // Public ambassador application submission - no account exists yet for the
                         // applicant. Only the exact /apply path: everything else under
                         // /api/ambassador-applications/** is the /api/admin/... review surface,

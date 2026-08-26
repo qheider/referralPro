@@ -32,3 +32,17 @@ export interface AcceptInvitationResponse {
   username: string;
   role: string;
 }
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  newPassword: string;
+}
+
+export interface ResetPasswordResponse {
+  userId: number;
+  username: string;
+}

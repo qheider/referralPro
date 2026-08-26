@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, tap, catchError, throwError, map } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { ApiResponse } from '../../shared/models/api-response.model';
-import { LoginRequest, LoginResponse, CurrentUserResponse, User, AcceptInvitationResponse } from '../../shared/models/auth.model';
+import { LoginRequest, LoginResponse, CurrentUserResponse, User, AcceptInvitationResponse, ResetPasswordResponse } from '../../shared/models/auth.model';
 
 @Injectable({
   providedIn: 'root'
@@ -222,6 +222,38 @@ export class AuthService {
         map(response => this.unwrapResponse(response, 'Unable to accept this invitation')),
         catchError(error => {
           console.error('Accept invitation failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Request a password reset link. Mirrors verifyEmail's shape - see
+   * PasswordResetController#forgotPassword. Always resolves with the same generic message
+   * whether or not the email belongs to an account (anti-enumeration), so callers should show a
+   * generic "check your email" panel rather than branching on the response.
+   */
+  forgotPassword(email: string): Observable<any> {
+    return this.http.post<ApiResponse<any>>(`${environment.apiUrl}/auth/forgot-password`, { email })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Unable to process this request')),
+        catchError(error => {
+          console.error('Forgot password request failed:', error);
+          return throwError(() => error);
+        })
+      );
+  }
+
+  /**
+   * Reset a password using the token from the reset-link email. Mirrors acceptInvitation's shape
+   * - see PasswordResetController#resetPassword.
+   */
+  resetPassword(token: string, newPassword: string): Observable<ResetPasswordResponse> {
+    return this.http.post<ApiResponse<ResetPasswordResponse>>(`${environment.apiUrl}/auth/reset-password`, { token, newPassword })
+      .pipe(
+        map(response => this.unwrapResponse(response, 'Unable to reset this password')),
+        catchError(error => {
+          console.error('Reset password failed:', error);
           return throwError(() => error);
         })
       );

@@ -162,6 +162,76 @@ public class EmailService {
     }
 
     /**
+     * Send a password reset link to a user who requested one via the "forgot password" flow.
+     * The raw token is single-use and short-lived - see PasswordResetService for the 30-minute
+     * expiry rationale (a reset link travels over email, a weaker channel than an admin-initiated
+     * invitation, so it gets a much shorter window than sendAmbassadorInvitationEmail's 7 days).
+     */
+    public void sendPasswordResetEmail(String toEmail, String resetToken) {
+        if (!emailEnabled) {
+            log.info("Email sending is disabled - skipping password reset email to: {}", toEmail);
+            return;
+        }
+
+        try {
+            String resetLink = frontendUrl + "/reset-password";
+            String subject = "Reset Your ReferralPro Password";
+            String body = "We received a request to reset your ReferralPro password.\n\n" +
+                    "Click the link below to choose a new password:\n" +
+                    resetLink + "?token=" + resetToken + "\n\n" +
+                    "This link will expire in 30 minutes.\n\n" +
+                    "If you did not request a password reset, you can safely ignore this email - " +
+                    "your password will not be changed.\n\n" +
+                    "Best regards,\n" +
+                    "The ReferralPro Team";
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+
+            mailSender.send(message);
+            log.info("Password reset email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to: {}", toEmail, e);
+            throw new RuntimeException("Failed to send password reset email", e);
+        }
+    }
+
+    /**
+     * Confirms that a password was just changed via the reset flow - a standard security notice
+     * so the account owner notices (and can act) if they didn't initiate the change themselves.
+     */
+    public void sendPasswordChangedConfirmationEmail(String toEmail) {
+        if (!emailEnabled) {
+            log.info("Email sending is disabled - skipping password-changed confirmation to: {}", toEmail);
+            return;
+        }
+
+        try {
+            String subject = "Your ReferralPro Password Was Changed";
+            String body = "This is a confirmation that your ReferralPro account password was just changed.\n\n" +
+                    "If you made this change, no further action is needed.\n\n" +
+                    "If you did not change your password, please contact support immediately.\n\n" +
+                    "Best regards,\n" +
+                    "The ReferralPro Team";
+
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject(subject);
+            message.setText(body);
+
+            mailSender.send(message);
+            log.info("Password-changed confirmation email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password-changed confirmation email to: {}", toEmail, e);
+            throw new RuntimeException("Failed to send password-changed confirmation email", e);
+        }
+    }
+
+    /**
      * Send generic email
      */
     public void sendEmail(String toEmail, String subject, String body) {
