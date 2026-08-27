@@ -988,6 +988,21 @@
       "item": [
         {
           "name": "Complete Conversion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const data = pm.response.json().data;",
+                  "  pm.collectionVariables.set('conversion_id', data.conversionId);",
+                  "  pm.collectionVariables.set('referee_external_user_id', 'user_54321');",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
@@ -1000,7 +1015,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "conversions"]
             },
-            "description": "Legacy direct-referral flow only - rejects ambassador-driven referrals (a Referral with no PlatformUser referrer). eventName must match the campaign's conversionEventName. Records the conversion and issues coupon-code rewards to both referrer and referee (reward.Reward, distinct from the ambassador-attribution AmbassadorReward model under Revenue Admin)."
+            "description": "Prerequisite chain: Company > Register Company, Campaign Admin > Create Campaign + Publish Campaign (must reach ACTIVE - see Campaign.isActive()), Referral (Direct API-Key Flow) > Generate Referral Link (saves `referral_code`). Legacy direct-referral flow only - rejects ambassador-driven referrals (a Referral with no PlatformUser referrer, 400). `eventName` must exactly match the campaign's `conversionEventName` (400 otherwise). Rejects self-referral (`externalUserId`/`email` matching the referrer) and duplicate conversions for the same referral+referee (400, unique constraint `uk_conversions_referral_referee`). On success, records the conversion (`status` COMPLETED then REWARDED) and issues coupon-code rewards to both referrer and referee (`reward.Reward`, distinct from the ambassador-attribution `AmbassadorReward` model under Revenue Admin). Saves `conversion_id`; use Reward (Direct API-Key Flow) > Get Rewards by User with `{{referee_external_user_id}}` or `{{external_user_id}}` (referrer) to see the issued rewards."
           }
         }
       ]
@@ -1436,6 +1451,8 @@
     { "key": "referral_code", "value": "", "type": "string" },
     { "key": "referral_link_token", "value": "", "type": "string" },
     { "key": "external_user_id", "value": "user_12345", "type": "string" },
+    { "key": "referee_external_user_id", "value": "user_54321", "type": "string" },
+    { "key": "conversion_id", "value": "", "type": "string" },
     { "key": "submission_id", "value": "1", "type": "string" },
     { "key": "webhook_public_id", "value": "", "type": "string" },
     { "key": "webhook_secret", "value": "", "type": "string" },
