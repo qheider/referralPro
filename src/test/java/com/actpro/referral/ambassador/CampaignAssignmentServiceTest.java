@@ -13,6 +13,7 @@ import com.actpro.referral.company.Company;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralTokenGenerator;
 import com.actpro.referral.security.CurrentUserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,7 +23,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -55,6 +55,9 @@ class CampaignAssignmentServiceTest {
     @Mock
     private CurrentUserService currentUserService;
 
+    @Mock
+    private ReferralLinkUrlService referralLinkUrlService;
+
     @InjectMocks
     private CampaignAssignmentService campaignAssignmentService;
 
@@ -65,8 +68,6 @@ class CampaignAssignmentServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(campaignAssignmentService, "baseUrl", "http://localhost:8080");
-
         company = new Company();
         company.setId(5L);
         company.setName("Acme");
@@ -123,6 +124,10 @@ class CampaignAssignmentServiceTest {
             link.setId(77L);
             return link;
         });
+        when(referralLinkUrlService.resolveReferralUrl(any(ReferralLink.class)))
+                .thenReturn("http://localhost:8080/r/AbcDef1234567890");
+        when(referralLinkUrlService.resolveQrCodeUrl(any(ReferralLink.class)))
+                .thenReturn("http://localhost:8080/r/link/AbcDef1234567890/qrcode");
 
         List<CampaignAssignmentResponse> response = campaignAssignmentService.assignAmbassadors(
                 8L,
@@ -132,6 +137,7 @@ class CampaignAssignmentServiceTest {
         assertEquals(1, response.size());
         assertEquals("AbcDef1234567890", response.get(0).referralLink().publicToken());
         assertEquals("http://localhost:8080/r/AbcDef1234567890", response.get(0).referralLink().referralUrl());
+        assertEquals("http://localhost:8080/r/link/AbcDef1234567890/qrcode", response.get(0).referralLink().qrCodeUrl());
 
         ArgumentCaptor<CampaignAmbassadorAssignment> assignmentCaptor = ArgumentCaptor.forClass(CampaignAmbassadorAssignment.class);
         verify(assignmentRepository).save(assignmentCaptor.capture());

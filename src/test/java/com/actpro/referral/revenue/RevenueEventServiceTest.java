@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -237,6 +238,46 @@ class RevenueEventServiceTest {
 
         verify(revenueEventRepository, never()).save(any());
         verify(ambassadorRewardRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRecordConversionQualifyingEventAndReturnTheCreatedReward() {
+        when(revenueEventRepository.findByReferralId(30L)).thenReturn(Optional.empty());
+        referral.setStatus(ReferralStatus.CONVERTED);
+
+        AmbassadorReward reward = service.recordConversionQualifyingEvent(referral, LocalDateTime.now());
+
+        assertEquals(AmbassadorRewardStatus.ELIGIBLE, reward.getStatus());
+        assertEquals(ambassador, reward.getAmbassadorUser());
+        verify(revenueEventRepository).save(any(RevenueEvent.class));
+        verify(ambassadorRewardRepository).save(any(AmbassadorReward.class));
+    }
+
+    @Test
+    void shouldBeIdempotentWhenRecordConversionQualifyingEventIsRetriedForSameReferral() {
+        RevenueEvent existing = new RevenueEvent();
+        existing.setId(100L);
+        existing.setStatus(RevenueEventStatus.RECORDED);
+        existing.setQualifyingStatus("CONVERTED");
+        AmbassadorReward existingReward = new AmbassadorReward();
+        existingReward.setId(200L);
+        existingReward.setStatus(AmbassadorRewardStatus.ELIGIBLE);
+        when(revenueEventRepository.findByReferralId(30L)).thenReturn(Optional.of(existing));
+        when(ambassadorRewardRepository.findByRevenueEventId(100L)).thenReturn(Optional.of(existingReward));
+        referral.setStatus(ReferralStatus.CONVERTED);
+
+        AmbassadorReward reward = service.recordConversionQualifyingEvent(referral, LocalDateTime.now());
+
+        assertEquals(200L, reward.getId());
+        verify(ambassadorRewardRepository, never()).save(any());
+    }
+
+    @Test
+    void shouldRejectRecordConversionQualifyingEventForReferralWithNoAmbassadorUser() {
+        referral.setAmbassadorUser(null);
+
+        assertThrows(IllegalStateException.class,
+                () -> service.recordConversionQualifyingEvent(referral, LocalDateTime.now()));
     }
 
     @Test

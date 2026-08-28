@@ -43,6 +43,13 @@ class ReferralQrCodeServiceTest {
     }
 
     @Test
+    void shouldEncodeArbitraryUrlViaGenerateForUrl() throws Exception {
+        byte[] png = referralQrCodeService.generateForUrl("https://company.example.com/signup?ref=tok123", 320);
+
+        assertEquals("https://company.example.com/signup?ref=tok123", decode(png));
+    }
+
+    @Test
     void shouldProduceValidPngBytes() {
         byte[] png = referralQrCodeService.generatePng("AbcDef1234567890");
 

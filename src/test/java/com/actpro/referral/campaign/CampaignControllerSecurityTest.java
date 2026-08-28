@@ -94,7 +94,7 @@ class CampaignControllerSecurityTest {
     private CampaignResponse sampleResponse() {
         return new CampaignResponse(
                 7L, "CODE1234AB", "https://app.referralpro.com/join/CODE1234AB",
-                "Referral Program", "desc", null, null, null, null, "https://acme.example.com/promo",
+                "Referral Program", "desc", null, null, null, null, "https://acme.example.com/promo", false,
                 null, null, null, null,
                 null, null, null, null,
                 CampaignStatus.SCHEDULED, null

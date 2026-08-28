@@ -8,6 +8,7 @@ public record ReferralLinkSummaryResponse(
         Long id,
         String publicToken,
         String referralUrl,
+        String qrCodeUrl,
         String destinationUrl,
         ReferralLinkStatus status,
         Long clickCount,

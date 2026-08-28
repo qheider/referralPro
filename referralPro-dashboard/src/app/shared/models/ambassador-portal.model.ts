@@ -2,6 +2,7 @@ export interface ReferralLinkSummary {
   id: number;
   publicToken: string;
   referralUrl: string;
+  qrCodeUrl: string;
   destinationUrl: string;
   status: string;
   clickCount: number;

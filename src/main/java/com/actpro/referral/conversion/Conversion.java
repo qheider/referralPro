@@ -35,8 +35,12 @@ public class Conversion extends BaseEntity {
     @JoinColumn(name = "referral_id", nullable = false)
     private Referral referral;
 
+    // Nullable: an ambassador-driven conversion (see ConversionService.completeConversion) has no
+    // PlatformUser referrer - only a DashboardUser ambassador, rewarded via
+    // revenue.AmbassadorReward instead (see RewardService.issueRewards). Always set for the legacy
+    // direct-API flow. Relaxed from NOT NULL by migration V36.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "referrer_user_id", nullable = false)
+    @JoinColumn(name = "referrer_user_id")
     private PlatformUser referrerUser;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -17,6 +17,7 @@ public record CampaignResponse(
         String termsUrl,
         BigDecimal budgetCap,
         String landingPageUrl,
+        boolean directToLandingPageEnabled,
         LocalDateTime startDate,
         LocalDateTime endDate,
         LocalDateTime ambassadorEnrollmentStart,

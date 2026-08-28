@@ -59,6 +59,7 @@ public class CampaignService {
         campaign.setTermsUrl(request.termsUrl());
         campaign.setBudgetCap(request.budgetCap());
         campaign.setLandingPageUrl(request.landingPageUrl());
+        campaign.setDirectToLandingPageEnabled(request.directToLandingPageEnabled());
         campaign.setStartDate(request.startDate());
         campaign.setEndDate(request.endDate());
         campaign.setAmbassadorEnrollmentStart(request.ambassadorEnrollmentStart());
@@ -110,6 +111,9 @@ public class CampaignService {
         }
         if (request.landingPageUrl() != null) {
             campaign.setLandingPageUrl(request.landingPageUrl());
+        }
+        if (request.directToLandingPageEnabled() != null) {
+            campaign.setDirectToLandingPageEnabled(request.directToLandingPageEnabled());
         }
         if (isDraft && request.startDate() != null) {
             campaign.setStartDate(request.startDate());
@@ -408,6 +412,7 @@ public class CampaignService {
                 campaign.getTermsUrl(),
                 campaign.getBudgetCap(),
                 campaign.getLandingPageUrl(),
+                campaign.isDirectToLandingPageEnabled(),
                 campaign.getStartDate(),
                 campaign.getEndDate(),
                 campaign.getAmbassadorEnrollmentStart(),

@@ -132,7 +132,7 @@ class CampaignServiceTest {
         when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
 
         UpdateCampaignRequest request = new UpdateCampaignRequest(
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 RewardType.CREDIT, BigDecimal.TEN, BigDecimal.ONE, "signup_completed");
 
         CampaignResponse response = campaignService.updateCampaign(5L, 10L, request);
@@ -149,7 +149,7 @@ class CampaignServiceTest {
         when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
 
         UpdateCampaignRequest request = new UpdateCampaignRequest(
-                null, null, null, null, null, null, null, null, null, null, null,
+                null, null, null, null, null, null, null, null, null, null, null, null,
                 RewardType.CREDIT, null, null, null);
 
         assertThrows(BadRequestException.class, () -> campaignService.updateCampaign(5L, 10L, request));
@@ -162,7 +162,7 @@ class CampaignServiceTest {
         when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
 
         UpdateCampaignRequest request = new UpdateCampaignRequest(
-                null, null, null, null, null, null, null, campaign.getStartDate().plusDays(1), null, null, null,
+                null, null, null, null, null, null, null, null, campaign.getStartDate().plusDays(1), null, null, null,
                 null, null, null, null);
 
         assertThrows(BadRequestException.class, () -> campaignService.updateCampaign(5L, 10L, request));
@@ -175,7 +175,7 @@ class CampaignServiceTest {
         when(campaignRepository.findByIdAndCompanyId(10L, 5L)).thenReturn(Optional.of(campaign));
 
         UpdateCampaignRequest request = new UpdateCampaignRequest(
-                "New name", "New description", null, null, null, null, null, null, null, null, null,
+                "New name", "New description", null, null, null, null, null, null, null, null, null, null,
                 null, null, null, null);
 
         CampaignResponse response = campaignService.updateCampaign(5L, 10L, request);
@@ -515,6 +515,7 @@ class CampaignServiceTest {
                 null,
                 null,
                 "https://acme.example.com/promo",
+                false,
                 startDate,
                 endDate,
                 enrollmentStart,

@@ -24,6 +24,11 @@ public record CreateCampaignRequest(
         @NotBlank(message = "Landing page URL is required")
         String landingPageUrl,
 
+        // When true (and landingPageUrl is non-blank), ambassador links/QR for this campaign point
+        // straight at landingPageUrl instead of ReferralPro's own redirect + lead-capture page.
+        // Defaults to false if omitted.
+        boolean directToLandingPageEnabled,
+
         @NotNull(message = "Start date is required")
         LocalDateTime startDate,
 

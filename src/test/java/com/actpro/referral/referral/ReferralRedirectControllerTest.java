@@ -38,6 +38,9 @@ class ReferralRedirectControllerTest {
     private ReferralQrCodeService referralQrCodeService;
 
     @MockBean
+    private ReferralLinkUrlService referralLinkUrlService;
+
+    @MockBean
     private CurrentUserService currentUserService;
 
     @MockBean
@@ -90,6 +93,20 @@ class ReferralRedirectControllerTest {
         when(referralQrCodeService.generatePng("AbcDef1234567890")).thenReturn(png);
 
         mockMvc.perform(get("/r/AbcDef1234567890/qrcode"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(content().bytes(png));
+    }
+
+    @Test
+    void shouldReturnQrCodePngForReferralLinkPublicToken() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G'};
+        when(referralLinkUrlService.resolveReferralUrlForToken("tok123"))
+                .thenReturn("https://app.example.com/r/tok123");
+        when(referralQrCodeService.generateForUrl("https://app.example.com/r/tok123", ReferralQrCodeService.DEFAULT_SIZE_PX))
+                .thenReturn(png);
+
+        mockMvc.perform(get("/r/link/tok123/qrcode"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(content().bytes(png));

@@ -1,6 +1,7 @@
 package com.actpro.referral.referral;
 
 import com.actpro.referral.click.ReferralClickService;
+import com.actpro.referral.common.exception.NotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.Cookie;
@@ -30,6 +31,7 @@ public class ReferralRedirectController {
 
     private final ReferralClickService referralClickService;
     private final ReferralQrCodeService referralQrCodeService;
+    private final ReferralLinkUrlService referralLinkUrlService;
 
     @Operation(
             summary = "Referral redirect",
@@ -61,6 +63,24 @@ public class ReferralRedirectController {
     @ResponseBody
     public ResponseEntity<byte[]> getReferralQrCode(@PathVariable String code) {
         byte[] png = referralQrCodeService.generatePng(code);
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())
+                .body(png);
+    }
+
+    @Operation(
+            summary = "Ambassador referral link QR code",
+            description = "Public endpoint returning a PNG QR code for an ambassador ReferralLink's publicToken. " +
+                    "Encodes whichever URL the link currently resolves to - ReferralPro's own /r/{token} redirect " +
+                    "by default, or the company's own landing page directly when the campaign is in " +
+                    "direct-to-landing-page mode - so it always matches what's shown alongside it."
+    )
+    @GetMapping(value = "/r/link/{publicToken}/qrcode", produces = MediaType.IMAGE_PNG_VALUE)
+    @ResponseBody
+    public ResponseEntity<byte[]> getReferralLinkQrCode(@PathVariable String publicToken) {
+        String url = referralLinkUrlService.resolveReferralUrlForToken(publicToken);
+        byte[] png = referralQrCodeService.generateForUrl(url, ReferralQrCodeService.DEFAULT_SIZE_PX);
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())

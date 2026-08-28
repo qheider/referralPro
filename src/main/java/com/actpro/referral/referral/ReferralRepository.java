@@ -147,4 +147,10 @@ public interface ReferralRepository extends JpaRepository<Referral, Long> {
             String email,
             Collection<ReferralStatus> excludedStatuses
     );
+
+    // Idempotency for ConversionService's direct-to-landing-page path: a company calling
+    // POST /api/conversions with a ReferralLink publicToken (instead of an existing Referral's
+    // referralCode - see completeConversion) needs the *same* on-the-fly Referral reused on a
+    // retried call for the same registrant, not a fresh one created every time.
+    Optional<Referral> findByReferralLinkEntityIdAndCustomerUserId(Long referralLinkEntityId, Long customerUserId);
 }
