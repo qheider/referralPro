@@ -132,13 +132,9 @@ public class ReferralLeadService {
 
     private SubmitReferralLeadResponse toResponse(Referral referral, ReferralLink link) {
         String redirectUrl = StringUtils.hasText(link.getDestinationUrl())
-                ? appendRefParam(link.getDestinationUrl(), referral.getReferralCode())
+                ? ReferralLinkUrlService.appendRefParam(link.getDestinationUrl(), referral.getReferralCode())
                 : null;
         return new SubmitReferralLeadResponse(referral.getReferralCode(), referral.getStatus(), referral.getRegisteredAt(), redirectUrl);
-    }
-
-    private String appendRefParam(String url, String refCode) {
-        return url + (url.contains("?") ? "&" : "?") + "ref=" + refCode;
     }
 
     private String syntheticExternalUserId(String normalizedEmail) {

@@ -44,12 +44,20 @@ public class ConversionController {
         response.setConversionId(conversion.getId());
         response.setStatus(conversion.getStatus());
 
-        // Add referrer reward info
-        ConversionResponse.RewardInfo referrerRewardInfo = new ConversionResponse.RewardInfo(
-                rewardResult.getReferrerReward().getCouponCode(),
-                rewardResult.getReferrerReward().getRewardValue().toString()
-        );
-        response.setReferrerReward(referrerRewardInfo);
+        // Referrer-side reward: from the legacy Reward when this was a PlatformUser-referrer
+        // conversion, or from the AmbassadorReward (no couponCode - it's a payable balance visible
+        // via the ambassador portal's earnings screens, not a redeemable coupon) when ambassador-driven.
+        if (rewardResult.getReferrerReward() != null) {
+            response.setReferrerReward(new ConversionResponse.RewardInfo(
+                    rewardResult.getReferrerReward().getCouponCode(),
+                    rewardResult.getReferrerReward().getRewardValue().toString()
+            ));
+        } else if (rewardResult.getAmbassadorReward() != null) {
+            response.setReferrerReward(new ConversionResponse.RewardInfo(
+                    null,
+                    rewardResult.getAmbassadorReward().getRewardValue().toString()
+            ));
+        }
 
         // Add referee reward info
         ConversionResponse.RewardInfo refereeRewardInfo = new ConversionResponse.RewardInfo(

@@ -25,6 +25,7 @@ public record UpdateCampaignRequest(
         BigDecimal budgetCap,
 
         String landingPageUrl,
+        Boolean directToLandingPageEnabled,
         LocalDateTime startDate,
         LocalDateTime endDate,
         LocalDateTime ambassadorEnrollmentStart,

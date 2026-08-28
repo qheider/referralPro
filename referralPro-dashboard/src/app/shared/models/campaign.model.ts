@@ -10,6 +10,9 @@ export interface CreateCampaignRequest {
   termsUrl?: string | null;
   budgetCap?: number | null;
   landingPageUrl: string;
+  // When true (and landingPageUrl is set), ambassador links/QR for this campaign point straight at
+  // landingPageUrl instead of ReferralPro's own redirect + lead-capture page. Defaults to false.
+  directToLandingPageEnabled: boolean;
   startDate: string;
   endDate: string;
   ambassadorEnrollmentStart: string;
@@ -30,6 +33,7 @@ export interface UpdateCampaignRequest {
   termsUrl?: string | null;
   budgetCap?: number | null;
   landingPageUrl?: string | null;
+  directToLandingPageEnabled?: boolean | null;
   startDate?: string | null;
   endDate?: string | null;
   ambassadorEnrollmentStart?: string | null;
@@ -51,6 +55,7 @@ export interface CampaignResponse {
   termsUrl?: string | null;
   budgetCap?: number | null;
   landingPageUrl: string;
+  directToLandingPageEnabled: boolean;
   startDate: string;
   endDate: string;
   ambassadorEnrollmentStart: string;

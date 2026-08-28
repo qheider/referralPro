@@ -81,7 +81,27 @@ public class RevenueEventService {
         }
     }
 
-    private void recordQualifyingEvent(Referral referral, ReferralStatus currentStatus, BigDecimal revenueAmount, String currency, LocalDateTime occurredAt) {
+    /**
+     * Ambassador-side counterpart to {@code ConversionService.completeConversion} for a company's
+     * direct API report of a registration/conversion (as opposed to a webhook-reported status
+     * change - see {@link #applyReferralStatusChange}) - lets a direct-to-landing-page ambassador
+     * referral (no {@code ApiSubmission}/webhook plumbing, since ReferralPro never captured the
+     * lead itself) still produce an {@link AmbassadorReward} through the same idempotent machinery.
+     * {@code revenueAmount}/{@code currency} are always null here: {@code ConversionRequest} carries
+     * neither, unlike the webhook payload.
+     */
+    @Transactional
+    public AmbassadorReward recordConversionQualifyingEvent(Referral referral, LocalDateTime occurredAt) {
+        // Defensive - every caller (ConversionService) only reaches this on the ambassador-driven
+        // branch (referrerUser == null), where ambassadorUser is always set, but this guards
+        // against a future caller passing a legacy referral without it.
+        if (referral.getAmbassadorUser() == null) {
+            throw new IllegalStateException("Cannot record a conversion qualifying event for a referral with no ambassadorUser: " + referral.getId());
+        }
+        return recordQualifyingEvent(referral, referral.getStatus(), null, null, occurredAt);
+    }
+
+    private AmbassadorReward recordQualifyingEvent(Referral referral, ReferralStatus currentStatus, BigDecimal revenueAmount, String currency, LocalDateTime occurredAt) {
         Optional<RevenueEvent> existing = revenueEventRepository.findByReferralId(referral.getId());
         if (existing.isPresent()) {
             RevenueEvent revenueEvent = existing.get();
@@ -95,7 +115,7 @@ public class RevenueEventService {
             } else {
                 log.info("Referral {} reported a qualifying status again after its RevenueEvent was already REVERSED - ignoring", referral.getId());
             }
-            return;
+            return ambassadorRewardRepository.findByRevenueEventId(revenueEvent.getId()).orElse(null);
         }
 
         Company company = referral.getCompany();
@@ -130,10 +150,11 @@ public class RevenueEventService {
         } else {
             reward.setStatus(AmbassadorRewardStatus.ELIGIBLE);
         }
-        ambassadorRewardRepository.save(reward);
+        reward = ambassadorRewardRepository.save(reward);
 
         log.info("Recorded RevenueEvent {} and AmbassadorReward for referral {} (ambassador {}, campaign {})",
                 revenueEvent.getId(), referral.getId(), referral.getAmbassadorUser().getId(), referral.getCampaign().getId());
+        return reward;
     }
 
     private void reverseIfExists(Referral referral) {

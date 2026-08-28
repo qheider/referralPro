@@ -46,6 +46,16 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
             <p *ngIf="fieldError('landingPageUrl')" class="text-xs text-red-600">{{ fieldError('landingPageUrl') }}</p>
           </label>
 
+          <label class="flex items-center gap-2 md:col-span-2">
+            <input type="checkbox" formControlName="directToLandingPageEnabled" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+            <span class="text-sm font-medium text-slate-700">Send ambassadors directly to your landing page</span>
+          </label>
+          <p class="-mt-2 text-xs text-slate-400 md:col-span-2">
+            Skips ReferralPro's own redirect and lead-capture page - the ambassador's link/QR go straight to the landing
+            page URL above with a <code>?ref=</code> parameter, and you report registrations back via the conversion API.
+            Requires a landing page URL; otherwise the default flow is used.
+          </p>
+
           <label class="space-y-2 md:col-span-2">
             <span class="text-sm font-medium text-slate-700">Qualifying conditions</span>
             <textarea formControlName="qualifyingConditions" rows="2" placeholder="e.g. referee must complete a paid signup within 30 days" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-indigo-500"></textarea>
@@ -150,6 +160,7 @@ export class CampaignFormComponent {
       termsUrl: ['', [Validators.maxLength(500)]],
       budgetCap: [null as number | null, [Validators.min(0)]],
       landingPageUrl: ['', [Validators.required, Validators.maxLength(500)]],
+      directToLandingPageEnabled: [false],
       startDate: ['', [Validators.required]],
       endDate: ['', [Validators.required]],
       ambassadorEnrollmentStart: ['', [Validators.required]],
@@ -240,6 +251,7 @@ export class CampaignFormComponent {
         termsUrl: rawValue.termsUrl || null,
         budgetCap: rawValue.budgetCap ?? null,
         landingPageUrl: rawValue.landingPageUrl ?? '',
+        directToLandingPageEnabled: rawValue.directToLandingPageEnabled ?? false,
         startDate: rawValue.startDate ?? '',
         endDate: rawValue.endDate ?? '',
         ambassadorEnrollmentStart: rawValue.ambassadorEnrollmentStart ?? '',

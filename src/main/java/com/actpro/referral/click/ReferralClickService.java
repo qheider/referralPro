@@ -5,6 +5,7 @@ import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -105,11 +106,7 @@ public class ReferralClickService {
         click.setClickedAt(LocalDateTime.now());
         referralClickRepository.save(click);
 
-        return appendRefParam(referral.getCampaign().getLandingPageUrl(), referral.getReferralCode());
-    }
-
-    private String appendRefParam(String url, String refCode) {
-        return url + (url.contains("?") ? "&" : "?") + "ref=" + refCode;
+        return ReferralLinkUrlService.appendRefParam(referral.getCampaign().getLandingPageUrl(), referral.getReferralCode());
     }
 
     private String hashIp(String ipAddress) {

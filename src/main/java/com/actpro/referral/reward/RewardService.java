@@ -24,27 +24,29 @@ public class RewardService {
         Campaign campaign = conversion.getCampaign();
         log.info("Issuing rewards for conversion ID: {}", conversion.getId());
 
-        // Create referrer reward
-        Reward referrerReward = createReward(
-                conversion,
-                conversion.getReferrerUser(),
-                campaign.getReferrerRewardValue()
-        );
+        // Ambassador-driven conversions have no PlatformUser referrer (see Conversion.referrerUser's
+        // Javadoc) - their reward is issued separately via RevenueEventService/AmbassadorReward
+        // instead, so there's nothing to create here for that side.
+        Reward referrerReward = conversion.getReferrerUser() != null
+                ? createReward(conversion, conversion.getReferrerUser(), campaign.getReferrerRewardValue())
+                : null;
+        if (referrerReward != null) {
+            rewardRepository.save(referrerReward);
+        }
 
-        // Create referee reward
+        // Create referee reward - always a real PlatformUser regardless of flow.
         Reward refereeReward = createReward(
                 conversion,
                 conversion.getRefereeUser(),
                 campaign.getRefereeRewardValue()
         );
-
-        rewardRepository.save(referrerReward);
         rewardRepository.save(refereeReward);
 
         log.info("Rewards issued successfully: referrer={}, referee={}",
-                referrerReward.getCouponCode(), refereeReward.getCouponCode());
+                referrerReward != null ? referrerReward.getCouponCode() : "n/a (ambassador-driven)",
+                refereeReward.getCouponCode());
 
-        return new RewardResult(referrerReward, refereeReward);
+        return new RewardResult(referrerReward, refereeReward, null);
     }
 
     private Reward createReward(Conversion conversion, PlatformUser user, BigDecimal value) {

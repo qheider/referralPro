@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -51,6 +52,13 @@ public class Campaign extends BaseEntity {
 
     @Column(name = "landing_page_url", nullable = false, length = 500)
     private String landingPageUrl;
+
+    // When true (and landingPageUrl is non-blank - see isDirectToLandingPageMode()), an ambassador
+    // assigned to this campaign gets a referral link/QR that points straight at landingPageUrl
+    // instead of ReferralPro's own /r/{token} redirect + /refer/{token} lead-capture page. See
+    // ReferralLinkUrlService and ConversionService's on-the-fly-referral handling.
+    @Column(name = "direct_to_landing_page_enabled", nullable = false)
+    private boolean directToLandingPageEnabled = false;
 
     // Customer-referral window (the original, pre-Luup fields - referral clicks/conversions are
     // only meaningful while the campaign is active within this window).
@@ -98,5 +106,13 @@ public class Campaign extends BaseEntity {
         return (status == CampaignStatus.SCHEDULED || status == CampaignStatus.ACTIVE) &&
                 !now.isBefore(ambassadorEnrollmentStart) &&
                 !now.isAfter(ambassadorEnrollmentEnd);
+    }
+
+    // Single source of truth for "is this campaign actually in direct-to-landing-page mode" - the
+    // checkbox alone isn't enough (landingPageUrl can be cleared later via UpdateCampaignRequest
+    // while the flag stays on), so every consumer (link/QR generation, conversion handling) reads
+    // this instead of directToLandingPageEnabled directly.
+    public boolean isDirectToLandingPageMode() {
+        return directToLandingPageEnabled && StringUtils.hasText(landingPageUrl);
     }
 }

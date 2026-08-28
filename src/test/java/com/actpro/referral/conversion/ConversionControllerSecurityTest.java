@@ -59,7 +59,7 @@ class ConversionControllerSecurityTest {
 
         Reward referrerReward = reward("REF1");
         Reward refereeReward = reward("REF2");
-        RewardResult rewardResult = new RewardResult(referrerReward, refereeReward);
+        RewardResult rewardResult = new RewardResult(referrerReward, refereeReward, null);
 
         when(conversionService.completeConversion(any()))
                 .thenReturn(new ConversionService.ConversionWithRewards(conversion, rewardResult));

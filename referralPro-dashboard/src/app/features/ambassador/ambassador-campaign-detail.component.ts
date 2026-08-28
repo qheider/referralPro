@@ -42,7 +42,7 @@ import { ReferralQrCodeComponent } from '../../shared/components/referral-qr-cod
           <h3 class="font-medium">Your referral link</h3>
           <p class="mt-4 break-all text-sm text-cyan-200">{{ campaign.referralLink.referralUrl }}</p>
           <p class="mt-4 text-sm text-slate-400">Landing page: {{ campaign.landingPageUrl }}</p>
-          <app-referral-qr-code class="mt-4 block" [referralUrl]="campaign.referralLink.referralUrl" />
+          <app-referral-qr-code class="mt-4 block" [qrCodeUrl]="campaign.referralLink.qrCodeUrl" />
         </section>
       </div>
     </div>

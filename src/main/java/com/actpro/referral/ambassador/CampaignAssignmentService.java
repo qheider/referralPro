@@ -14,10 +14,10 @@ import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralTokenGenerator;
 import com.actpro.referral.security.CurrentUserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,9 +36,7 @@ public class CampaignAssignmentService {
     private final ReferralLinkRepository referralLinkRepository;
     private final ReferralTokenGenerator referralTokenGenerator;
     private final CurrentUserService currentUserService;
-
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
+    private final ReferralLinkUrlService referralLinkUrlService;
 
     @Transactional
     public List<CampaignAssignmentResponse> assignAmbassadors(Long campaignId, AssignAmbassadorsRequest request) {
@@ -234,7 +232,8 @@ public class CampaignAssignmentService {
         return new ReferralLinkSummaryResponse(
                 referralLink.getId(),
                 referralLink.getPublicToken(),
-                baseUrl + "/r/" + referralLink.getPublicToken(),
+                referralLinkUrlService.resolveReferralUrl(referralLink),
+                referralLinkUrlService.resolveQrCodeUrl(referralLink),
                 referralLink.getDestinationUrl(),
                 referralLink.getStatus(),
                 referralLink.getClickCount(),

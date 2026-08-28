@@ -2,17 +2,18 @@ import { CommonModule } from '@angular/common';
 import { Component, Input } from '@angular/core';
 
 /**
- * Renders a scannable QR code for a referral link, backed by the backend's public
- * GET /r/{code}/qrcode endpoint (see ReferralRedirectController/ReferralQrCodeService) - the QR
- * encodes the exact same /r/{code} URL as the link itself, so scanning it does exactly what
- * clicking the link does (same click-tracking, same redirect).
+ * Renders a scannable QR code for a referral link. \`qrCodeUrl\` is always backend-resolved (see
+ * ReferralLinkSummaryResponse.qrCodeUrl / ReferralRedirectController's /r/{code}/qrcode and
+ * /r/link/{token}/qrcode routes) - this component never derives it itself, because in
+ * direct-to-landing-page mode \`referralUrl\` (shown as plain text below the code) is the company's
+ * own external landing page, not a ReferralPro path an image URL could be appended to.
  */
 @Component({
   selector: 'app-referral-qr-code',
   standalone: true,
   imports: [CommonModule],
   template: `
-    <div class="flex items-center gap-4" *ngIf="referralUrl">
+    <div class="flex items-center gap-4" *ngIf="qrCodeUrl">
       <img
         [src]="qrCodeUrl"
         alt="QR code for this referral link"
@@ -34,14 +35,10 @@ import { Component, Input } from '@angular/core';
   `
 })
 export class ReferralQrCodeComponent {
-  @Input({ required: true }) referralUrl!: string;
+  @Input({ required: true }) qrCodeUrl!: string;
 
   isDownloading = false;
   downloadError = '';
-
-  get qrCodeUrl(): string {
-    return `${this.referralUrl}/qrcode`;
-  }
 
   async download(): Promise<void> {
     this.isDownloading = true;

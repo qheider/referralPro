@@ -9,6 +9,7 @@ import com.actpro.referral.click.ReferralClickRepository;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralLinkRepository;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.revenue.AmbassadorReward;
 import com.actpro.referral.revenue.AmbassadorRewardRepository;
@@ -48,6 +49,8 @@ class AmbassadorPortalServiceEarningsTest {
     private ReferralClickRepository referralClickRepository;
     @Mock
     private AmbassadorRewardRepository ambassadorRewardRepository;
+    @Mock
+    private ReferralLinkUrlService referralLinkUrlService;
 
     private AmbassadorPortalService service;
 
@@ -57,7 +60,8 @@ class AmbassadorPortalServiceEarningsTest {
     void setUp() {
         service = new AmbassadorPortalService(
                 currentUserService, ambassadorProfileRepository, assignmentRepository,
-                referralLinkRepository, referralRepository, referralClickRepository, ambassadorRewardRepository);
+                referralLinkRepository, referralRepository, referralClickRepository, ambassadorRewardRepository,
+                referralLinkUrlService);
 
         Company company = new Company();
         company.setId(1L);

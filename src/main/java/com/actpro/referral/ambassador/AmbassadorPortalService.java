@@ -9,6 +9,7 @@ import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralStatus;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.revenue.AmbassadorReward;
@@ -17,7 +18,6 @@ import com.actpro.referral.revenue.AmbassadorRewardStatus;
 import com.actpro.referral.security.CurrentUserService;
 import com.actpro.referral.user.PlatformUser;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -64,9 +64,7 @@ public class AmbassadorPortalService {
     private final ReferralRepository referralRepository;
     private final ReferralClickRepository referralClickRepository;
     private final AmbassadorRewardRepository ambassadorRewardRepository;
-
-    @Value("${app.base-url:http://localhost:8080}")
-    private String baseUrl;
+    private final ReferralLinkUrlService referralLinkUrlService;
 
     @Transactional(readOnly = true)
     public AmbassadorDashboardResponse getDashboard() {
@@ -560,7 +558,8 @@ public class AmbassadorPortalService {
         return new ReferralLinkSummaryResponse(
                 referralLink.getId(),
                 referralLink.getPublicToken(),
-                baseUrl + "/r/" + referralLink.getPublicToken(),
+                referralLinkUrlService.resolveReferralUrl(referralLink),
+                referralLinkUrlService.resolveQrCodeUrl(referralLink),
                 referralLink.getDestinationUrl(),
                 referralLink.getStatus(),
                 referralLink.getClickCount(),
