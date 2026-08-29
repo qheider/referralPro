@@ -7,6 +7,9 @@ import { Component, Input } from '@angular/core';
  * /r/link/{token}/qrcode routes) - this component never derives it itself, because in
  * direct-to-landing-page mode \`referralUrl\` (shown as plain text below the code) is the company's
  * own external landing page, not a ReferralPro path an image URL could be appended to.
+ *
+ * \`theme\` picks the text colors: 'dark' (default) matches the ambassador portal's dark shell;
+ * 'light' matches the company-admin dashboard's white-card shell.
  */
 @Component({
   selector: 'app-referral-qr-code',
@@ -17,25 +20,37 @@ import { Component, Input } from '@angular/core';
       <img
         [src]="qrCodeUrl"
         alt="QR code for this referral link"
-        class="h-28 w-28 flex-none rounded-lg border border-slate-800 bg-white p-2"
+        class="h-28 w-28 flex-none rounded-lg border p-2 bg-white"
+        [class.border-slate-800]="theme === 'dark'"
+        [class.border-slate-200]="theme === 'light'"
       />
       <div class="space-y-2">
-        <p class="text-xs uppercase tracking-wide text-slate-500">Scan to open this referral link</p>
+        <p class="text-xs uppercase tracking-wide" [class.text-slate-500]="theme === 'dark'" [class.text-slate-400]="theme === 'light'">
+          Scan to open this referral link
+        </p>
         <button
           type="button"
           (click)="download()"
           [disabled]="isDownloading"
-          class="text-sm text-cyan-300 underline decoration-dotted underline-offset-2 disabled:opacity-50"
+          class="text-sm underline decoration-dotted underline-offset-2 disabled:opacity-50"
+          [class.text-cyan-300]="theme === 'dark'"
+          [class.text-indigo-600]="theme === 'light'"
         >
           {{ isDownloading ? 'Preparing download…' : 'Download QR code' }}
         </button>
-        <p *ngIf="downloadError" class="text-xs text-red-400">{{ downloadError }}</p>
+        <p *ngIf="downloadError" class="text-xs" [class.text-red-400]="theme === 'dark'" [class.text-red-600]="theme === 'light'">
+          {{ downloadError }}
+        </p>
       </div>
     </div>
   `
 })
 export class ReferralQrCodeComponent {
   @Input({ required: true }) qrCodeUrl!: string;
+  // Lets callers give the downloaded file a meaningful name (e.g. company + campaign name for the
+  // company-admin view's branded QR code) instead of the generic default.
+  @Input() fileName = 'referral-qr-code.png';
+  @Input() theme: 'dark' | 'light' = 'dark';
 
   isDownloading = false;
   downloadError = '';
@@ -60,7 +75,7 @@ export class ReferralQrCodeComponent {
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = objectUrl;
-      link.download = 'referral-qr-code.png';
+      link.download = this.fileName;
       link.click();
       URL.revokeObjectURL(objectUrl);
     } catch {

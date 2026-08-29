@@ -10,9 +10,17 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import javax.imageio.ImageIO;
+import java.awt.Color;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Map;
 
 /**
@@ -51,6 +59,71 @@ public class ReferralQrCodeService {
     // external company landing page; generatePng(code, size) above is just the code-only case of
     // this, kept as a thin wrapper so its existing callers/tests are unaffected.
     public byte[] generateForUrl(String url, int sizePx) {
+        return toPng(buildBareImage(url, sizePx));
+    }
+
+    /**
+     * Same QR code as {@link #generateForUrl}, but composited onto a taller white canvas with
+     * {@code headerLines} centered above it (first line bold/larger - meant for the company name,
+     * remaining lines regular weight - meant for the campaign name). Used by the company-admin
+     * dashboard's ambassador view (see {@link ReferralRedirectController}'s {@code withHeader}
+     * query param) so a downloaded/printed QR code is self-identifying; blank lines are skipped
+     * entirely rather than leaving empty space.
+     */
+    public byte[] generateForUrlWithHeader(String url, int sizePx, String... headerLines) {
+        BufferedImage qrImage = buildBareImage(url, sizePx);
+
+        java.util.List<String> lines = Arrays.stream(headerLines)
+                .filter(line -> line != null && !line.isBlank())
+                .toList();
+        if (lines.isEmpty()) {
+            return toPng(qrImage);
+        }
+
+        Font titleFont = new Font(Font.SANS_SERIF, Font.BOLD, Math.max(14, sizePx / 18));
+        Font subtitleFont = new Font(Font.SANS_SERIF, Font.PLAIN, Math.max(12, sizePx / 22));
+        int padding = Math.max(8, sizePx / 32);
+        int lineGap = padding / 2;
+
+        // Measure using a throwaway graphics context before committing to the canvas height.
+        BufferedImage measuring = new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB);
+        Graphics2D measuringGraphics = measuring.createGraphics();
+        int headerHeight = padding;
+        for (int i = 0; i < lines.size(); i++) {
+            FontMetrics metrics = measuringGraphics.getFontMetrics(i == 0 ? titleFont : subtitleFont);
+            headerHeight += metrics.getHeight();
+            if (i < lines.size() - 1) {
+                headerHeight += lineGap;
+            }
+        }
+        headerHeight += padding;
+        measuringGraphics.dispose();
+
+        BufferedImage canvas = new BufferedImage(sizePx, headerHeight + sizePx, BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = canvas.createGraphics();
+        graphics.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        graphics.setColor(Color.WHITE);
+        graphics.fillRect(0, 0, canvas.getWidth(), canvas.getHeight());
+
+        graphics.setColor(Color.BLACK);
+        int y = padding;
+        for (int i = 0; i < lines.size(); i++) {
+            Font font = i == 0 ? titleFont : subtitleFont;
+            graphics.setFont(font);
+            FontMetrics metrics = graphics.getFontMetrics(font);
+            int textWidth = metrics.stringWidth(lines.get(i));
+            int x = Math.max(0, (canvas.getWidth() - textWidth) / 2);
+            y += metrics.getAscent();
+            graphics.drawString(lines.get(i), x, y);
+            y += metrics.getDescent() + metrics.getLeading() + lineGap;
+        }
+        graphics.drawImage(qrImage, 0, headerHeight, null);
+        graphics.dispose();
+
+        return toPng(canvas);
+    }
+
+    private BufferedImage buildBareImage(String url, int sizePx) {
         try {
             BitMatrix matrix = new QRCodeWriter().encode(
                     url,
@@ -62,13 +135,19 @@ public class ReferralQrCodeService {
                             EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M
                     )
             );
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            MatrixToImageWriter.writeToStream(matrix, "PNG", out);
-            return out.toByteArray();
+            return MatrixToImageWriter.toBufferedImage(matrix);
         } catch (WriterException e) {
             throw new IllegalStateException("Failed to encode QR code for URL: " + url, e);
+        }
+    }
+
+    private byte[] toPng(BufferedImage image) {
+        try {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            ImageIO.write(image, "PNG", out);
+            return out.toByteArray();
         } catch (IOException e) {
-            throw new UncheckedIOException("Failed to render QR code PNG for URL: " + url, e);
+            throw new UncheckedIOException("Failed to render QR code PNG", e);
         }
     }
 }

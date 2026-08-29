@@ -17,9 +17,11 @@ import com.actpro.referral.common.exception.NotFoundException;
 import com.actpro.referral.company.Company;
 import com.actpro.referral.company.CompanyRepository;
 import com.actpro.referral.company.CompanyStatus;
+import com.actpro.referral.campaign.Campaign;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.security.CurrentUserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +67,9 @@ class AmbassadorAdminServiceTest {
 
     @Mock
     private ReferralLinkRepository referralLinkRepository;
+
+    @Mock
+    private ReferralLinkUrlService referralLinkUrlService;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -356,5 +361,42 @@ class AmbassadorAdminServiceTest {
         assertEquals(ReferralLinkStatus.DISABLED, link.getStatus());
         assertEquals(AmbassadorStatus.INACTIVE, response.status());
         assertTrue(response.referralLinks().isEmpty());
+    }
+
+    @Test
+    void shouldIncludeReferralUrlAndBrandedQrCodeUrlForEachReferralLink() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.ACTIVE);
+
+        Campaign campaign = new Campaign();
+        campaign.setId(77L);
+        campaign.setCompany(company);
+        campaign.setName("Summer Referral Drive");
+
+        ReferralLink link = new ReferralLink();
+        link.setId(41L);
+        link.setCampaign(campaign);
+        link.setPublicToken("tok-abc123");
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+        link.setClickCount(5L);
+
+        when(ambassadorProfileRepository.findDetailedByIdAndCompanyId(31L, 10L)).thenReturn(Optional.of(profile));
+        when(referralLinkRepository.findByAmbassadorUserIdAndCompanyId(21L, 10L)).thenReturn(List.of(link));
+        when(referralLinkUrlService.resolveReferralUrl(link)).thenReturn("https://app.example.com/r/tok-abc123");
+        when(referralLinkUrlService.resolveBrandedQrCodeUrl(link))
+                .thenReturn("https://app.example.com/r/link/tok-abc123/qrcode?withHeader=true");
+
+        AmbassadorDetailResponse response = ambassadorAdminService.getAmbassador(31L);
+
+        assertEquals(1, response.referralLinks().size());
+        assertEquals("https://app.example.com/r/tok-abc123", response.referralLinks().get(0).referralUrl());
+        assertEquals("https://app.example.com/r/link/tok-abc123/qrcode?withHeader=true", response.referralLinks().get(0).qrCodeUrl());
     }
 }

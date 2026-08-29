@@ -16,6 +16,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -74,13 +75,24 @@ public class ReferralRedirectController {
             description = "Public endpoint returning a PNG QR code for an ambassador ReferralLink's publicToken. " +
                     "Encodes whichever URL the link currently resolves to - ReferralPro's own /r/{token} redirect " +
                     "by default, or the company's own landing page directly when the campaign is in " +
-                    "direct-to-landing-page mode - so it always matches what's shown alongside it."
+                    "direct-to-landing-page mode - so it always matches what's shown alongside it. When " +
+                    "withHeader=true, the company name and campaign name are printed as a header above the code " +
+                    "(used by the company-admin dashboard so a downloaded/printed code is self-identifying)."
     )
     @GetMapping(value = "/r/link/{publicToken}/qrcode", produces = MediaType.IMAGE_PNG_VALUE)
     @ResponseBody
-    public ResponseEntity<byte[]> getReferralLinkQrCode(@PathVariable String publicToken) {
-        String url = referralLinkUrlService.resolveReferralUrlForToken(publicToken);
-        byte[] png = referralQrCodeService.generateForUrl(url, ReferralQrCodeService.DEFAULT_SIZE_PX);
+    public ResponseEntity<byte[]> getReferralLinkQrCode(
+            @PathVariable String publicToken,
+            @RequestParam(defaultValue = "false") boolean withHeader) {
+        byte[] png;
+        if (withHeader) {
+            ReferralLinkUrlService.QrCodeContext context = referralLinkUrlService.resolveQrContext(publicToken);
+            png = referralQrCodeService.generateForUrlWithHeader(
+                    context.url(), ReferralQrCodeService.DEFAULT_SIZE_PX, context.companyName(), context.campaignName());
+        } else {
+            String url = referralLinkUrlService.resolveReferralUrlForToken(publicToken);
+            png = referralQrCodeService.generateForUrl(url, ReferralQrCodeService.DEFAULT_SIZE_PX);
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.IMAGE_PNG)
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(7)).cachePublic())

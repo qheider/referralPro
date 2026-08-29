@@ -111,4 +111,20 @@ class ReferralRedirectControllerTest {
                 .andExpect(header().string("Content-Type", "image/png"))
                 .andExpect(content().bytes(png));
     }
+
+    @Test
+    void shouldReturnBrandedQrCodePngWhenWithHeaderRequested() throws Exception {
+        byte[] png = {(byte) 0x89, 'P', 'N', 'G'};
+        when(referralLinkUrlService.resolveQrContext("tok123"))
+                .thenReturn(new ReferralLinkUrlService.QrCodeContext(
+                        "https://app.example.com/r/tok123", "Acme Rentals", "Summer Referral Drive"));
+        when(referralQrCodeService.generateForUrlWithHeader(
+                "https://app.example.com/r/tok123", ReferralQrCodeService.DEFAULT_SIZE_PX, "Acme Rentals", "Summer Referral Drive"))
+                .thenReturn(png);
+
+        mockMvc.perform(get("/r/link/tok123/qrcode").param("withHeader", "true"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "image/png"))
+                .andExpect(content().bytes(png));
+    }
 }

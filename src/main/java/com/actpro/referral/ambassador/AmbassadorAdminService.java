@@ -18,6 +18,7 @@ import com.actpro.referral.referral.Referral;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.referral.ReferralStatus;
 import com.actpro.referral.security.CurrentUserService;
@@ -56,6 +57,7 @@ public class AmbassadorAdminService {
     private final CompanyRepository companyRepository;
     private final ReferralRepository referralRepository;
     private final ReferralLinkRepository referralLinkRepository;
+    private final ReferralLinkUrlService referralLinkUrlService;
     private final PasswordEncoder passwordEncoder;
     private final CurrentUserService currentUserService;
     private final AccountInvitationService accountInvitationService;
@@ -338,6 +340,11 @@ public class AmbassadorAdminService {
                 referralLink.getCampaign().getId(),
                 referralLink.getCampaign().getName(),
                 referralLink.getPublicToken(),
+                referralLinkUrlService.resolveReferralUrl(referralLink),
+                // Branded (withHeader=true) so the company name and campaign name print above the
+                // code - this is the company-admin view, where a downloaded/printed QR code should
+                // be self-identifying; AmbassadorPortalService's own qrCodeUrl stays unbranded.
+                referralLinkUrlService.resolveBrandedQrCodeUrl(referralLink),
                 referralLink.getDestinationUrl(),
                 referralLink.getStatus(),
                 referralLink.getClickCount(),

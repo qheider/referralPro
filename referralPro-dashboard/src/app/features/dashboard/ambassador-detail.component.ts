@@ -2,13 +2,15 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AmbassadorAdminService } from '../../core/services/ambassador-admin.service';
-import { AmbassadorDetail } from '../../shared/models/ambassador.model';
+import { AuthService } from '../../core/services/auth.service';
+import { AmbassadorDetail, AmbassadorReferralLink } from '../../shared/models/ambassador.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
+import { ReferralQrCodeComponent } from '../../shared/components/referral-qr-code.component';
 
 @Component({
   selector: 'app-ambassador-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, ReferralQrCodeComponent],
   template: `
     <div *ngIf="errorMessage()" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
       {{ errorMessage() }}
@@ -83,8 +85,15 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
           <div class="mt-4 space-y-3" *ngIf="ambassador.referralLinks.length; else noLinks">
             <div *ngFor="let link of ambassador.referralLinks" class="rounded-2xl border border-slate-200 p-4">
               <p class="text-sm font-semibold text-slate-900">{{ link.campaignName }}</p>
-              <p class="mt-1 break-all text-xs text-slate-500">{{ link.publicToken }}</p>
+              <p class="mt-1 break-all text-xs text-slate-500">{{ link.referralUrl || link.publicToken }}</p>
               <p class="mt-2 text-xs text-slate-500">Clicks: {{ link.clickCount }} · {{ link.status }}</p>
+              <app-referral-qr-code
+                *ngIf="link.qrCodeUrl"
+                class="mt-3 block"
+                theme="light"
+                [qrCodeUrl]="link.qrCodeUrl"
+                [fileName]="downloadFileName(link)"
+              />
             </div>
           </div>
           <ng-template #noLinks>
@@ -105,7 +114,8 @@ export class AmbassadorDetailComponent implements OnInit {
 
   constructor(
     private route: ActivatedRoute,
-    private ambassadorAdminService: AmbassadorAdminService
+    private ambassadorAdminService: AmbassadorAdminService,
+    private authService: AuthService
   ) {}
 
   ngOnInit(): void {
@@ -160,5 +170,21 @@ export class AmbassadorDetailComponent implements OnInit {
   private applyAmbassador(ambassador: AmbassadorDetail): void {
     this.ambassador.set({ ...ambassador, referralLinks: ambassador.referralLinks ?? [] });
     this.errorMessage.set('');
+  }
+
+  // The QR image itself already has the company name and campaign name printed as a header
+  // (see AmbassadorAdminService.toReferralLinkResponse / ReferralRedirectController's
+  // withHeader=true route) - this just carries the same identification into the saved filename.
+  downloadFileName(link: AmbassadorReferralLink): string {
+    const companyName = this.authService.currentUserSignal()?.companyName || 'ReferralPro';
+    const parts = [companyName, link.campaignName, 'QR'].map(part => this.slugify(part));
+    return `${parts.join('-')}.png`;
+  }
+
+  private slugify(value: string): string {
+    return value
+      .trim()
+      .replace(/[^a-zA-Z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'referral';
   }
 }

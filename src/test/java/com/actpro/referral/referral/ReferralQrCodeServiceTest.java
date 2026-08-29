@@ -50,6 +50,39 @@ class ReferralQrCodeServiceTest {
     }
 
     @Test
+    void shouldStillEncodeTheSameUrlWhenRenderedWithAHeader() throws Exception {
+        byte[] png = referralQrCodeService.generateForUrlWithHeader(
+                "https://company.example.com/signup?ref=tok123", 320, "Acme Rentals", "Summer Referral Drive");
+
+        assertEquals("https://company.example.com/signup?ref=tok123", decode(png));
+    }
+
+    @Test
+    void shouldRenderATallerCanvasThanTheBareQrCodeWhenHeaderLinesArePresent() throws IOException {
+        byte[] bare = referralQrCodeService.generateForUrl("https://company.example.com/signup?ref=tok123", 320);
+        byte[] withHeader = referralQrCodeService.generateForUrlWithHeader(
+                "https://company.example.com/signup?ref=tok123", 320, "Acme Rentals", "Summer Referral Drive");
+
+        BufferedImage bareImage = ImageIO.read(new ByteArrayInputStream(bare));
+        BufferedImage headerImage = ImageIO.read(new ByteArrayInputStream(withHeader));
+
+        assertEquals(320, headerImage.getWidth());
+        assertTrue(headerImage.getHeight() > bareImage.getHeight());
+    }
+
+    @Test
+    void shouldSkipTheHeaderEntirelyWhenAllLinesAreBlank() throws IOException {
+        byte[] bare = referralQrCodeService.generateForUrl("https://company.example.com/signup?ref=tok123", 320);
+        byte[] withBlankHeader = referralQrCodeService.generateForUrlWithHeader(
+                "https://company.example.com/signup?ref=tok123", 320, null, "  ");
+
+        BufferedImage bareImage = ImageIO.read(new ByteArrayInputStream(bare));
+        BufferedImage blankHeaderImage = ImageIO.read(new ByteArrayInputStream(withBlankHeader));
+
+        assertEquals(bareImage.getHeight(), blankHeaderImage.getHeight());
+    }
+
+    @Test
     void shouldProduceValidPngBytes() {
         byte[] png = referralQrCodeService.generatePng("AbcDef1234567890");
 

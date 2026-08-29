@@ -48,6 +48,27 @@ public class ReferralLinkUrlService {
         return baseUrl + "/r/link/" + link.getPublicToken() + "/qrcode";
     }
 
+    // Same route as resolveQrCodeUrl, with the withHeader flag that renders the company name and
+    // campaign name as a header above the QR code - used by the company-admin ambassador view
+    // (AmbassadorAdminService) so a downloaded/printed code is self-identifying. See
+    // ReferralRedirectController#getReferralLinkQrCode.
+    public String resolveBrandedQrCodeUrl(ReferralLink link) {
+        return resolveQrCodeUrl(link) + "?withHeader=true";
+    }
+
+    // Looks the link up by token and returns everything ReferralRedirectController's withHeader=true
+    // branch needs to render a labeled QR code - kept here (not in the controller) so the lookup and
+    // field access stay alongside resolveReferralUrl/resolveQrCodeUrl rather than duplicated in a
+    // controller that's meant to stay thin.
+    public QrCodeContext resolveQrContext(String publicToken) {
+        ReferralLink link = referralLinkRepository.findDetailedByPublicToken(publicToken)
+                .orElseThrow(() -> new NotFoundException("Referral link not found"));
+        return new QrCodeContext(resolveReferralUrl(link), link.getCompany().getName(), link.getCampaign().getName());
+    }
+
+    public record QrCodeContext(String url, String companyName, String campaignName) {
+    }
+
     public static String appendRefParam(String url, String refValue) {
         return url + (url.contains("?") ? "&" : "?") + "ref=" + refValue;
     }
