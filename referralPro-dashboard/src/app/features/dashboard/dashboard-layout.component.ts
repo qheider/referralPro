@@ -4,6 +4,7 @@ import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } fro
 import { filter } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { User } from '../../shared/models/auth.model';
+import { AiCopilotWidgetComponent } from './ai-copilot-widget.component';
 
 interface NavigationItem {
   label: string;
@@ -15,7 +16,7 @@ interface NavigationItem {
 @Component({
   selector: 'app-dashboard-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, AiCopilotWidgetComponent],
   templateUrl: './dashboard-layout.component.html',
   styleUrl: './dashboard-layout.component.css'
 })
