@@ -112,6 +112,22 @@ app:
     dispatch-enabled: ${WEBHOOK_DISPATCH_ENABLED:true}
     dispatch-interval-ms: ${WEBHOOK_DISPATCH_INTERVAL_MS:5000}
     batch-size: ${WEBHOOK_BATCH_SIZE:50}
+  ai:
+    # Dashboard conversational analytics copilot (DashboardCopilotService). Kill switch - when
+    # false, or when the selected provider's api-key is blank, requests are rejected with a 400
+    # rather than failing against a misconfigured/absent client.
+    enabled: ${AI_ENABLED:true}
+    # Which provider AiClient routes to - anthropic or openai. Only the selected provider's
+    # api-key needs to be set; both blocks can be filled in at once so switching providers later
+    # is just changing this value - no code change either way.
+    provider: ${AI_PROVIDER:anthropic}
+    max-tool-iterations: ${AI_MAX_TOOL_ITERATIONS:6}
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: ${ANTHROPIC_MODEL:claude-sonnet-5}
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-4o}
 
 logging:
   level:

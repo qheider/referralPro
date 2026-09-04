@@ -1,0 +1,77 @@
+<div class="fixed bottom-6 right-6 z-40">
+  <div *ngIf="isOpen" class="mb-3 w-96 max-w-[90vw] overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+    <div class="flex items-center justify-between bg-indigo-600 px-4 py-3">
+      <p class="text-sm font-semibold text-white">Ask your dashboard</p>
+      <button
+        type="button"
+        class="rounded-lg p-1 text-indigo-100 hover:bg-indigo-500 hover:text-white"
+        (click)="toggle()"
+        aria-label="Close AI copilot"
+      >
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <div class="max-h-80 space-y-3 overflow-y-auto px-4 py-4">
+      <p *ngIf="!response && !errorMessage && !isLoading" class="text-sm text-slate-500">
+        Ask a question about your campaigns, e.g. "which campaign converted best last month?"
+      </p>
+
+      <p *ngIf="isLoading" class="text-sm text-slate-500">Thinking...</p>
+
+      <p *ngIf="errorMessage" class="text-sm text-red-600">{{ errorMessage }}</p>
+
+      <div *ngIf="response" class="space-y-2">
+        <p class="whitespace-pre-line text-sm text-slate-800">{{ response.answer }}</p>
+        <div *ngIf="response.campaigns.length" class="flex flex-wrap gap-2">
+          <span
+            *ngFor="let campaign of response.campaigns"
+            class="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600"
+          >
+            {{ campaign.campaignName }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <form class="flex items-center gap-2 border-t border-slate-200 px-4 py-3" (ngSubmit)="ask()">
+      <input
+        type="text"
+        name="question"
+        [(ngModel)]="question"
+        placeholder="Ask a question..."
+        autocomplete="off"
+        class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+        [disabled]="isLoading"
+      />
+      <button
+        type="submit"
+        class="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+        [disabled]="isLoading || !question.trim()"
+      >
+        Ask
+      </button>
+    </form>
+  </div>
+
+  <button
+    type="button"
+    class="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600 text-white shadow-xl transition-colors hover:bg-indigo-700"
+    (click)="toggle()"
+    aria-label="Toggle dashboard AI copilot"
+  >
+    <svg *ngIf="!isOpen" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8-1.06 0-2.077-.162-3.02-.46L3 21l1.52-4.06A7.947 7.947 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+      />
+    </svg>
+    <svg *ngIf="isOpen" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </button>
+</div>
