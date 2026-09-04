@@ -9,6 +9,8 @@ public record AmbassadorReferralLinkResponse(
         Long campaignId,
         String campaignName,
         String publicToken,
+        String referralUrl,
+        String qrCodeUrl,
         String destinationUrl,
         ReferralLinkStatus status,
         Long clickCount,

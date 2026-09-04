@@ -18,6 +18,8 @@ export interface AmbassadorReferralLink {
   campaignId: number;
   campaignName: string;
   publicToken: string;
+  referralUrl: string;
+  qrCodeUrl: string;
   destinationUrl?: string | null;
   status: 'ACTIVE' | 'DISABLED' | 'EXPIRED';
   clickCount: number;
