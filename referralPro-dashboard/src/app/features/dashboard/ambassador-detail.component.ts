@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { AmbassadorAdminService } from '../../core/services/ambassador-admin.service';
-import { AmbassadorDetail } from '../../shared/models/ambassador.model';
+import { AmbassadorDetail, AmbassadorReferralLink } from '../../shared/models/ambassador.model';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
 @Component({
@@ -80,11 +80,30 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
         <div class="rounded-3xl bg-white p-6 shadow-sm">
           <h3 class="text-lg font-semibold text-slate-900">Referral links</h3>
-          <div class="mt-4 space-y-3" *ngIf="ambassador.referralLinks.length; else noLinks">
+          <div class="mt-4 space-y-4" *ngIf="ambassador.referralLinks.length; else noLinks">
             <div *ngFor="let link of ambassador.referralLinks" class="rounded-2xl border border-slate-200 p-4">
               <p class="text-sm font-semibold text-slate-900">{{ link.campaignName }}</p>
-              <p class="mt-1 break-all text-xs text-slate-500">{{ link.publicToken }}</p>
+              <p class="mt-1 break-all text-xs text-indigo-600">{{ link.referralUrl }}</p>
               <p class="mt-2 text-xs text-slate-500">Clicks: {{ link.clickCount }} · {{ link.status }}</p>
+
+              <div class="mt-3 flex items-center gap-4" *ngIf="link.qrCodeUrl">
+                <img
+                  [src]="link.qrCodeUrl"
+                  alt="QR code for {{ link.campaignName }} referral link"
+                  class="h-24 w-24 flex-none rounded-lg border border-slate-200 bg-white p-2"
+                />
+                <div class="space-y-1">
+                  <p class="text-xs uppercase tracking-wide text-slate-400">Scan to open this referral link</p>
+                  <button
+                    type="button"
+                    (click)="downloadQrCode(link)"
+                    [disabled]="downloadingLinkId() === link.id"
+                    class="text-xs font-semibold text-indigo-600 underline decoration-dotted underline-offset-2 disabled:opacity-50"
+                  >
+                    {{ downloadingLinkId() === link.id ? 'Preparing download…' : 'Download QR code' }}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           <ng-template #noLinks>
@@ -102,6 +121,7 @@ import { extractApiErrorMessage } from '../../shared/utils/error-message';
 export class AmbassadorDetailComponent implements OnInit {
   readonly ambassador = signal<AmbassadorDetail | null>(null);
   readonly errorMessage = signal('');
+  readonly downloadingLinkId = signal<number | null>(null);
 
   constructor(
     private route: ActivatedRoute,
@@ -138,6 +158,34 @@ export class AmbassadorDetailComponent implements OnInit {
         this.errorMessage.set(extractApiErrorMessage(error, 'Unable to deactivate ambassador.'));
       }
     });
+  }
+
+  // Native fetch, not HttpClient: /r/link/{token}/qrcode is public and lives on the backend's root
+  // origin, not under environment.apiUrl - the authInterceptor attaches a JWT and treats any error
+  // response as a session problem, neither of which applies here. Fetching the bytes ourselves
+  // (rather than relying on <a download> across origins, which most browsers ignore) is what makes
+  // the download reliable. Mirrors ReferralQrCodeComponent's download logic for the ambassador portal.
+  async downloadQrCode(link: AmbassadorReferralLink): Promise<void> {
+    this.downloadingLinkId.set(link.id);
+
+    try {
+      const response = await fetch(link.qrCodeUrl);
+      if (!response.ok) {
+        throw new Error(`Unexpected response (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = objectUrl;
+      anchor.download = 'referral-qr-code.png';
+      anchor.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      this.errorMessage.set('Unable to download QR code.');
+    } finally {
+      this.downloadingLinkId.set(null);
+    }
   }
 
   private loadAmbassador(): void {

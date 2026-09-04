@@ -20,6 +20,7 @@ import com.actpro.referral.company.CompanyStatus;
 import com.actpro.referral.referral.ReferralLink;
 import com.actpro.referral.referral.ReferralLinkRepository;
 import com.actpro.referral.referral.ReferralLinkStatus;
+import com.actpro.referral.referral.ReferralLinkUrlService;
 import com.actpro.referral.referral.ReferralRepository;
 import com.actpro.referral.security.CurrentUserService;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,6 +66,9 @@ class AmbassadorAdminServiceTest {
 
     @Mock
     private ReferralLinkRepository referralLinkRepository;
+
+    @Mock
+    private ReferralLinkUrlService referralLinkUrlService;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -356,5 +360,46 @@ class AmbassadorAdminServiceTest {
         assertEquals(ReferralLinkStatus.DISABLED, link.getStatus());
         assertEquals(AmbassadorStatus.INACTIVE, response.status());
         assertTrue(response.referralLinks().isEmpty());
+    }
+
+    @Test
+    void shouldIncludeReferralUrlAndQrCodeUrlInAmbassadorDetail() {
+        DashboardUser user = new DashboardUser();
+        user.setId(21L);
+        user.setCompany(company);
+        user.setFirstName("Sarah");
+        user.setLastName("Ahmed");
+        user.setUsername("sarah@example.com");
+        user.setRole(UserRole.AMBASSADOR);
+        user.setStatus(UserStatus.ACTIVE);
+
+        AmbassadorProfile profile = new AmbassadorProfile();
+        profile.setId(31L);
+        profile.setCompany(company);
+        profile.setUser(user);
+        profile.setStatus(AmbassadorStatus.ACTIVE);
+        profile.setAmbassadorCode("AMB-12345678");
+
+        com.actpro.referral.campaign.Campaign campaign = new com.actpro.referral.campaign.Campaign();
+        campaign.setId(40L);
+        campaign.setName("Summer campaign");
+
+        ReferralLink link = new ReferralLink();
+        link.setCampaign(campaign);
+        link.setPublicToken("tok-123");
+        link.setStatus(ReferralLinkStatus.ACTIVE);
+        link.setClickCount(3L);
+
+        when(ambassadorProfileRepository.findDetailedByIdAndCompanyId(31L, 10L)).thenReturn(Optional.of(profile));
+        when(referralLinkRepository.findByAmbassadorUserIdAndCompanyId(21L, 10L)).thenReturn(List.of(link));
+        when(currentUserService.getCurrentCompanyId()).thenReturn(10L);
+        when(referralLinkUrlService.resolveReferralUrl(link)).thenReturn("http://localhost:8080/r/tok-123");
+        when(referralLinkUrlService.resolveQrCodeUrl(link)).thenReturn("http://localhost:8080/r/link/tok-123/qrcode");
+
+        AmbassadorDetailResponse response = ambassadorAdminService.getAmbassador(31L);
+
+        assertEquals(1, response.referralLinks().size());
+        assertEquals("http://localhost:8080/r/tok-123", response.referralLinks().get(0).referralUrl());
+        assertEquals("http://localhost:8080/r/link/tok-123/qrcode", response.referralLinks().get(0).qrCodeUrl());
     }
 }
