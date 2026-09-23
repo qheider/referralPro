@@ -93,8 +93,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         // Use allowedOriginPatterns to support wildcards for local development; the default value
-        // of app.cors.allowed-origins (see application.yml) preserves today's localhost/LAN/
-        // Tailscale patterns exactly - real deployments override via CORS_ALLOWED_ORIGINS.
+        // of app.cors.allowed-origins includes the hosted dashboard and localhost/LAN/Tailscale.
+        // CORS_ALLOWED_ORIGINS replaces that list; deployments must include their dashboard origin.
         // setAllowedOriginPatterns accepts exact URLs fine (patterns are a superset), so UAT/prod
         // origins don't need setAllowedOrigins.
         configuration.setAllowedOriginPatterns(corsAllowedOrigins);
