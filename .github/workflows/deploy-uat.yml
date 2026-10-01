@@ -94,9 +94,35 @@ jobs:
 
       - name: Deploy to UAT
         run: |
+          # Environment properties override application.yml defaults. Preserve any
+          # additional origins already configured while ensuring the dashboard works.
+          aws elasticbeanstalk describe-configuration-settings \
+            --application-name "${EB_APPLICATION_NAME}" \
+            --environment-name "${EB_ENVIRONMENT_NAME}" \
+            --query "ConfigurationSettings[0].OptionSettings[?Namespace=='aws:elasticbeanstalk:application:environment' && OptionName=='CORS_ALLOWED_ORIGINS'].Value" \
+            --output json > cors-current.json
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          existing = json.loads(Path("cors-current.json").read_text())
+          origins = [origin.strip() for value in existing for origin in value.split(",") if origin.strip()]
+          dashboard_origin = "https://referral.luupnow.ca"
+          if dashboard_origin not in origins:
+              origins.append(dashboard_origin)
+          options = [{
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "CORS_ALLOWED_ORIGINS",
+              "Value": ",".join(origins),
+          }]
+          Path("cors-options.json").write_text(json.dumps(options))
+          PY
+
           aws elasticbeanstalk update-environment \
             --environment-name "${EB_ENVIRONMENT_NAME}" \
-            --version-label "${{ steps.version.outputs.version }}"
+            --version-label "${{ steps.version.outputs.version }}" \
+            --option-settings file://cors-options.json
 
       - name: Wait for deployment
         run: |
@@ -109,3 +135,33 @@ jobs:
             --environment-names "${EB_ENVIRONMENT_NAME}" \
             --query "Environments[0].[Status,Health,HealthStatus,VersionLabel]" \
             --output table
+
+      - name: Verify live registration CORS
+        run: |
+          curl --silent --show-error --fail-with-body \
+            --connect-timeout 10 --max-time 30 \
+            --retry 3 --retry-delay 5 \
+            --dump-header cors-response.headers \
+            --output cors-response.body \
+            --request OPTIONS \
+            --header 'Origin: https://referral.luupnow.ca' \
+            --header 'Access-Control-Request-Method: POST' \
+            --header 'Access-Control-Request-Headers: content-type,authorization' \
+            'https://api-uat.referral.actpro.ai/api/companies/register'
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          headers = {}
+          for line in Path("cors-response.headers").read_text().splitlines():
+              if line.startswith("HTTP/"):
+                  headers = {}
+              elif ":" in line:
+                  name, value = line.split(":", 1)
+                  headers[name.lower()] = value.strip()
+          assert headers.get("access-control-allow-origin") == "https://referral.luupnow.ca", "Dashboard origin missing from live CORS response"
+          assert "POST" in {item.strip() for item in headers.get("access-control-allow-methods", "").split(",")}, "Registration POST is not allowed"
+          allowed = {item.strip().lower() for item in headers.get("access-control-allow-headers", "").split(",")}
+          assert {"content-type", "authorization"} <= allowed, "Registration request headers are not allowed"
+          print("Live registration preflight passed")
+          PY

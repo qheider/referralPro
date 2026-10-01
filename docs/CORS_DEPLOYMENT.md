@@ -16,6 +16,20 @@ configured, update that environment property to include
 defaults. Retain any other required origins in the comma-separated value. Do not
 include `/register`, a trailing slash, or use `*` for the hosted deployment.
 
+The UAT deployment workflow now reads the existing Elastic Beanstalk CORS
+environment property, preserves its entries, and adds the dashboard origin in
+the same update as the application deployment. This fixes an existing environment
+override even when changing the application's default had no effect. It then
+checks the public API preflight and fails the workflow if the required CORS
+headers are missing. The deployment AWS identity needs
+`elasticbeanstalk:DescribeConfigurationSettings` as well as its existing
+deployment permissions.
+
+To repair the running environment without rebuilding, add the dashboard origin
+to `CORS_ALLOWED_ORIGINS` in Elastic Beanstalk's environment properties and apply
+the change. This setting is consumed by the existing backend. Preserve any other
+required origins. Changing a local `.env` file does not update Elastic Beanstalk.
+
 For a deployment serving only this dashboard:
 
 ```text
