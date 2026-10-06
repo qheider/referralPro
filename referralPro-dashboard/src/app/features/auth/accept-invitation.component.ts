@@ -1,11 +1,11 @@
-import { Component, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { extractApiErrorMessage } from '../../shared/utils/error-message';
 
-type PageState = 'form' | 'missing-token' | 'submitting' | 'accepted' | 'error';
+type PageState = 'loading' | 'form' | 'missing-token' | 'submitting' | 'accepted' | 'error';
 
 /**
  * Public landing page for the invitation link ambassadors (and any future invitation-based
@@ -43,6 +43,8 @@ type PageState = 'form' | 'missing-token' | 'submitting' | 'accepted' | 'error';
           </a>
         </div>
 
+        <p *ngIf="state === 'loading'" class="text-center text-sm text-gray-500">Loading invitation...</p>
+
         <form
           *ngIf="state === 'form' || state === 'submitting'"
           [formGroup]="form"
@@ -54,6 +56,16 @@ type PageState = 'form' | 'missing-token' | 'submitting' | 'accepted' | 'error';
           </div>
 
           <div class="space-y-4">
+            <label class="block">
+              <span class="block text-sm font-medium text-gray-700">Ambassador name</span>
+              <input type="text" [value]="invitation?.name || ''" readonly
+                class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-500 sm:text-sm" />
+            </label>
+            <label class="block">
+              <span class="block text-sm font-medium text-gray-700">Email address</span>
+              <input type="email" [value]="invitation?.email || ''" readonly
+                class="mt-1 block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-500 sm:text-sm" />
+            </label>
             <label class="block">
               <span class="block text-sm font-medium text-gray-700">New password</span>
               <input
@@ -120,7 +132,8 @@ type PageState = 'form' | 'missing-token' | 'submitting' | 'accepted' | 'error';
 export class AcceptInvitationComponent implements OnInit {
   readonly form: FormGroup;
 
-  state: PageState = 'form';
+  state: PageState = 'loading';
+  invitation: { name: string; email: string } | null = null;
   submitError = '';
 
   private token = '';
@@ -129,7 +142,8 @@ export class AcceptInvitationComponent implements OnInit {
     private fb: FormBuilder,
     private route: ActivatedRoute,
     private router: Router,
-    private authService: AuthService
+    private authService: AuthService,
+    private cdr: ChangeDetectorRef
   ) {
     this.form = this.fb.group(
       {
@@ -145,11 +159,24 @@ export class AcceptInvitationComponent implements OnInit {
 
     if (!this.token) {
       this.state = 'missing-token';
+      return;
     }
+    this.authService.getInvitationDetails(this.token).subscribe({
+      next: invitation => {
+        this.invitation = invitation;
+        this.state = 'form';
+        this.cdr.markForCheck();
+      },
+      error: (error: unknown) => {
+        this.state = 'error';
+        this.submitError = extractApiErrorMessage(error, 'This invitation is invalid or expired. Please ask for a new invitation.');
+        this.cdr.markForCheck();
+      }
+    });
   }
 
   submit(): void {
-    if (this.form.invalid || !this.token) {
+    if (this.state !== 'form' || this.form.invalid || !this.token || !this.invitation) {
       this.form.markAllAsTouched();
       return;
     }
@@ -160,6 +187,7 @@ export class AcceptInvitationComponent implements OnInit {
     this.authService.acceptInvitation(this.token, this.form.value.password).subscribe({
       next: () => {
         this.state = 'accepted';
+        this.cdr.markForCheck();
         setTimeout(() => {
           this.router.navigate(['/login']);
         }, 2000);
@@ -167,6 +195,7 @@ export class AcceptInvitationComponent implements OnInit {
       error: (error: unknown) => {
         this.state = 'error';
         this.submitError = extractApiErrorMessage(error, 'Unable to accept this invitation. It may have expired or already been used.');
+        this.cdr.markForCheck();
       }
     });
   }

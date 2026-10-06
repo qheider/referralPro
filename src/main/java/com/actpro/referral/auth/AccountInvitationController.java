@@ -4,6 +4,8 @@ import com.actpro.referral.ambassador.AmbassadorAdminService;
 import com.actpro.referral.auth.dto.AcceptInvitationRequest;
 import com.actpro.referral.auth.dto.AcceptInvitationResponse;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.auth.dto.InvitationDetailsRequest;
+import com.actpro.referral.auth.dto.InvitationDetailsResponse;
 import com.actpro.referral.auth.dto.ResendVerificationRequest;
 import com.actpro.referral.auth.dto.ResendVerificationResponse;
 import com.actpro.referral.auth.dto.VerifyEmailRequest;
@@ -14,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.CacheControl;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -27,6 +30,13 @@ public class AccountInvitationController {
 
     private final AccountInvitationService accountInvitationService;
     private final AmbassadorAdminService ambassadorAdminService;
+
+    @PostMapping("/invitation-details")
+    public ResponseEntity<ApiResponse<InvitationDetailsResponse>> invitationDetails(
+            @Valid @RequestBody InvitationDetailsRequest request) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(ApiResponse.success("Invitation details", accountInvitationService.getInvitationDetails(request.token())));
+    }
 
     @Operation(
             summary = "Accept an account invitation",

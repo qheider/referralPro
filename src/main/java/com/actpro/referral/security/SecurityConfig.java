@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/api/auth/hash").permitAll()
                         .requestMatchers("/api/auth/accept-invitation").permitAll()
+                        .requestMatchers("/api/auth/invitation-details").permitAll()
                         .requestMatchers("/api/auth/verify-email").permitAll()
                         .requestMatchers("/api/auth/forgot-password", "/api/auth/reset-password").permitAll()
                         // Public ambassador application submission - no account exists yet for the

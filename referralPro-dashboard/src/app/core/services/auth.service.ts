@@ -227,6 +227,12 @@ export class AuthService {
       );
   }
 
+  getInvitationDetails(token: string): Observable<{ name: string; email: string }> {
+    return this.http.post<ApiResponse<{ name: string; email: string }>>(
+      `${environment.apiUrl}/auth/invitation-details`, { token }
+    ).pipe(map(response => this.unwrapResponse(response, 'Unable to load this invitation')));
+  }
+
   /**
    * Request a password reset link. Mirrors verifyEmail's shape - see
    * PasswordResetController#forgotPassword. Always resolves with the same generic message

@@ -83,6 +83,36 @@ class AccountInvitationServiceTest {
     }
 
     @Test
+    void shouldReadInvitedIdentityWithoutAcceptingInvitation() {
+        user.setFirstName("Jane");
+        user.setLastName("Smith");
+        AccountInvitation invitation = new AccountInvitation();
+        invitation.setDashboardUser(user);
+        invitation.setPurpose(InvitationPurpose.AMBASSADOR_ONBOARDING);
+        invitation.setExpiresAt(LocalDateTime.now().plusDays(1));
+        when(accountInvitationRepository.findByTokenHash(sha256("valid-token")))
+                .thenReturn(Optional.of(invitation));
+
+        var details = accountInvitationService.getInvitationDetails("valid-token");
+
+        assertEquals("Jane Smith", details.name());
+        assertEquals("ambassador@example.com", details.email());
+        assertEquals(UserStatus.PENDING, user.getStatus());
+        assertEquals(null, invitation.getAcceptedAt());
+        verify(passwordEncoder, never()).encode(any());
+    }
+
+    @Test
+    void shouldRejectExpiredIdentityLookup() {
+        AccountInvitation invitation = new AccountInvitation();
+        invitation.setPurpose(InvitationPurpose.AMBASSADOR_ONBOARDING);
+        invitation.setExpiresAt(LocalDateTime.now().minusDays(1));
+        when(accountInvitationRepository.findByTokenHash(sha256("expired-token")))
+                .thenReturn(Optional.of(invitation));
+        assertThrows(BadRequestException.class, () -> accountInvitationService.getInvitationDetails("expired-token"));
+    }
+
+    @Test
     void shouldRevokePreviousOutstandingInvitationsWhenReissuing() {
         AccountInvitation previous = new AccountInvitation();
         previous.setId(9L);

@@ -2,6 +2,7 @@ package com.actpro.referral.auth;
 
 import com.actpro.referral.auth.dto.AcceptInvitationResponse;
 import com.actpro.referral.auth.dto.IssuedInvitationResponse;
+import com.actpro.referral.auth.dto.InvitationDetailsResponse;
 import com.actpro.referral.common.exception.BadRequestException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,23 @@ public class AccountInvitationService {
     private final AccountInvitationRepository accountInvitationRepository;
     private final DashboardUserRepository dashboardUserRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public InvitationDetailsResponse getInvitationDetails(String rawToken) {
+        if (rawToken == null || rawToken.isBlank()) {
+            throw new BadRequestException("Invalid or expired invitation");
+        }
+        AccountInvitation invitation = accountInvitationRepository.findByTokenHash(hash(rawToken.trim()))
+                .orElseThrow(() -> new BadRequestException("Invalid or expired invitation"));
+        if (!invitation.isUsable() || invitation.getPurpose() != InvitationPurpose.AMBASSADOR_ONBOARDING) {
+            throw new BadRequestException("Invalid or expired invitation");
+        }
+        DashboardUser user = invitation.getDashboardUser();
+        String name = java.util.stream.Stream.of(user.getFirstName(), user.getLastName())
+                .filter(value -> value != null && !value.isBlank())
+                .collect(java.util.stream.Collectors.joining(" "));
+        return new InvitationDetailsResponse(name, user.getUsername());
+    }
 
     /**
      * Issues a fresh invitation token for the given user, revoking any invitation for that user
