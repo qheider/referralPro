@@ -37,7 +37,10 @@ CORS_ALLOWED_ORIGINS=https://referral.luupnow.ca
 APP_FRONTEND_URL=https://referral.luupnow.ca
 ```
 
-`APP_FRONTEND_URL` controls generated email links; it does not configure CORS.
+`APP_FRONTEND_URL` controls campaign join links and generated email links; it does not configure CORS.
+The UAT deployment workflow sets this property to `https://referral.luupnow.ca`,
+replacing any old domain configured in Elastic Beanstalk. Existing campaigns
+return corrected join links after the environment update; no campaign recreation is needed.
 Apply environment changes/restart the backend, then verify from PowerShell:
 
 ```powershell

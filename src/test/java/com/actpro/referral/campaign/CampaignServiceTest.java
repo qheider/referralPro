@@ -58,7 +58,7 @@ class CampaignServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(campaignService, "frontendUrl", "https://app.referralpro.com");
+        ReflectionTestUtils.setField(campaignService, "frontendUrl", "https://referral.luupnow.ca");
 
         company = new Company();
         company.setId(5L);
@@ -82,7 +82,7 @@ class CampaignServiceTest {
 
         assertEquals(CampaignStatus.DRAFT, response.status());
         assertEquals("ABCD1234EF", response.campaignCode());
-        assertEquals("https://app.referralpro.com/join/ABCD1234EF", response.joinLink());
+        assertEquals("https://referral.luupnow.ca/join/ABCD1234EF", response.joinLink());
 
         ArgumentCaptor<Campaign> captor = ArgumentCaptor.forClass(Campaign.class);
         org.mockito.Mockito.verify(campaignRepository).save(captor.capture());

@@ -115,6 +115,10 @@ jobs:
               "Namespace": "aws:elasticbeanstalk:application:environment",
               "OptionName": "CORS_ALLOWED_ORIGINS",
               "Value": ",".join(origins),
+          }, {
+              "Namespace": "aws:elasticbeanstalk:application:environment",
+              "OptionName": "APP_FRONTEND_URL",
+              "Value": dashboard_origin,
           }]
           Path("cors-options.json").write_text(json.dumps(options))
           PY
